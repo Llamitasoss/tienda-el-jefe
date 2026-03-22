@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { MessageCircle, X, Send, Bot, Phone, Package, ExternalLink, MapPin } from 'lucide-react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function FloatingChat() {
   const [isOpen, setIsOpen] = useState(false);
@@ -61,7 +62,7 @@ export default function FloatingChat() {
         setIsTyping(false);
       }, 1500);
     }
-  }, [isOpen]);
+  }, [isOpen, messages.length]);
 
   // 4. MOTOR DE BÚSQUEDA
   const normalizeString = (str) => {
@@ -154,140 +155,192 @@ export default function FloatingChat() {
   return (
     <div className="fixed bottom-6 right-4 sm:right-6 z-[100] font-sans">
       
-      {/* VENTANA DEL CHAT (Posición Absoluta respecto al contenedor) */}
-      <div 
-        className={`absolute bottom-[80px] right-0 w-[calc(100vw-2rem)] sm:w-[380px] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden transition-all duration-300 origin-bottom-right flex flex-col ${
-          isOpen ? 'scale-100 opacity-100 h-[500px] max-h-[75vh]' : 'scale-50 opacity-0 h-0 pointer-events-none'
-        }`}
-      >
-        {/* Cabecera del Chat */}
-        <div className="bg-[#0866bd] p-4 flex items-center justify-between text-white shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-              <Bot size={20} />
-            </div>
-            <div>
-              <h4 className="font-black tracking-widest text-sm uppercase">El Jefecito</h4>
-              <p className="text-[10px] text-blue-100 font-bold flex items-center gap-1">
-                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> En línea
-              </p>
-            </div>
-          </div>
-          <button onClick={() => setIsOpen(false)} className="hover:text-blue-200 transition-colors p-1">
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Área de Mensajes */}
-        <div className="p-4 flex-1 overflow-y-auto custom-scrollbar bg-slate-50 space-y-4">
-          {messages.map((msg, idx) => (
-            <div key={idx} className={`flex flex-col ${msg.isBot ? 'items-start' : 'items-end'} animate-fade-in-up`}>
+      {/* VENTANA DEL CHAT */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.8, y: 20, originX: 1, originY: 1 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="absolute bottom-[80px] right-0 w-[calc(100vw-2rem)] sm:w-[400px] bg-white/95 backdrop-blur-2xl rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-slate-200 overflow-hidden flex flex-col h-[520px] max-h-[75vh]"
+          >
+            {/* Cabecera del Chat */}
+            <div className="bg-slate-900 p-5 flex items-center justify-between text-white shrink-0 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 rounded-full blur-[40px] pointer-events-none"></div>
               
-              <div className={`max-w-[85%] p-3 text-sm ${
-                msg.isBot 
-                  ? 'bg-white border border-slate-200 text-slate-700 rounded-2xl rounded-tl-sm shadow-sm' 
-                  : 'bg-[#0866bd] text-white rounded-2xl rounded-tr-sm shadow-md'
-              }`}>
-                {msg.text}
-              </div>
-
-              {/* Minicarjetas de Productos */}
-              {msg.products && msg.products.length > 0 && (
-                <div className="mt-2 w-[95%] space-y-2">
-                  {msg.products.map(prod => (
-                    <div key={prod.id} className="bg-white border border-slate-200 p-2 rounded-xl flex gap-3 items-center shadow-sm hover:border-[#0866bd]/50 transition-colors group cursor-pointer" onClick={() => handleProductClick(prod.id)}>
-                      <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center p-1 shrink-0">
-                        <img src={prod.img} alt={prod.name} className="w-full h-full object-contain mix-blend-multiply" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-black text-slate-800 truncate uppercase">{prod.name}</p>
-                        <p className="text-xs font-black text-[#0866bd] mt-0.5">${prod.price.toLocaleString('es-MX')}</p>
-                      </div>
-                      <button className="w-7 h-7 bg-blue-50 text-[#0866bd] rounded-full flex items-center justify-center shrink-0 group-hover:bg-[#0866bd] group-hover:text-white transition-colors">
-                        <ExternalLink size={12} />
-                      </button>
-                    </div>
-                  ))}
+              <div className="flex items-center gap-4 relative z-10">
+                <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-2xl flex items-center justify-center shadow-[0_0_15px_rgba(250,204,21,0.3)]">
+                  <Bot size={24} className="text-slate-900" />
                 </div>
-              )}
-
-              {/* Botón WhatsApp Respaldo */}
-              {msg.needsWhatsappBtn && (
-                <a 
-                  href={`https://wa.me/523332406334?text=${encodeURIComponent(`Hola, estoy buscando: ${msg.userQuery}. ¿Lo tendrán en sucursal?`)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-2 inline-flex items-center gap-2 bg-white border-2 border-[#25D366] text-[#25D366] hover:bg-[#25D366] hover:text-white text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-colors"
-                >
-                  <Phone size={14} /> WhatsApp
-                </a>
-              )}
-            </div>
-          ))}
-          
-          {/* Animación Escribiendo */}
-          {isTyping && (
-            <div className="flex justify-start animate-fade-in-up">
-              <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-sm p-3 shadow-sm flex gap-1.5">
-                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div>
+                  <h4 className="font-black tracking-widest text-sm uppercase text-white">El Jefecito</h4>
+                  <p className="text-[10px] text-blue-200 font-bold flex items-center gap-1.5 uppercase tracking-wider mt-0.5">
+                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_5px_rgba(52,211,153,0.8)]"></span> Asistente Virtual
+                  </p>
+                </div>
               </div>
+              <button onClick={() => setIsOpen(false)} className="bg-white/10 hover:bg-white/20 rounded-full p-2 transition-colors relative z-10 backdrop-blur-sm border border-white/5">
+                <X size={18} />
+              </button>
             </div>
-          )}
-          
-          <div ref={messagesEndRef} />
-        </div>
 
-        {/* BARRITAS DE SUGERENCIAS */}
-        {isOpen && messages.length <= 2 && !isTyping && (
-           <div className="px-3 py-3 bg-slate-50 flex gap-2 overflow-x-auto border-t border-slate-100 shrink-0 custom-scrollbar">
-             {quickReplies.map((reply, i) => (
-               <button 
-                 key={i} 
-                 onClick={reply.action}
-                 className="whitespace-nowrap flex items-center gap-1.5 bg-white border border-slate-200 text-slate-600 text-[10px] font-bold uppercase tracking-widest px-3 py-2 rounded-full hover:border-[#0866bd] hover:text-[#0866bd] transition-colors shadow-sm shrink-0"
-               >
-                 <reply.icon size={12}/> {reply.text}
-               </button>
-             ))}
-           </div>
+            {/* Área de Mensajes */}
+            <div className="p-5 flex-1 overflow-y-auto custom-scrollbar bg-slate-50/50 space-y-5 relative">
+              {messages.map((msg, idx) => (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  key={idx} 
+                  className={`flex flex-col ${msg.isBot ? 'items-start' : 'items-end'}`}
+                >
+                  
+                  <div className={`max-w-[85%] p-4 text-[13px] leading-relaxed shadow-sm ${
+                    msg.isBot 
+                      ? 'bg-white border border-slate-200 text-slate-700 rounded-[1.5rem] rounded-tl-sm' 
+                      : 'bg-gradient-to-tr from-[#0866bd] to-blue-600 text-white rounded-[1.5rem] rounded-tr-sm font-medium'
+                  }`}>
+                    {msg.text}
+                  </div>
+
+                  {/* Minicarjetas de Productos */}
+                  {msg.products && msg.products.length > 0 && (
+                    <div className="mt-3 w-[95%] space-y-2.5">
+                      {msg.products.map(prod => (
+                        <motion.div 
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          key={prod.id} 
+                          className="bg-white border border-slate-200 p-2.5 rounded-2xl flex gap-3 items-center shadow-sm hover:border-[#0866bd]/50 hover:shadow-md transition-all group cursor-pointer" 
+                          onClick={() => handleProductClick(prod.id)}
+                        >
+                          <div className="w-14 h-14 bg-slate-50 rounded-xl flex items-center justify-center p-1.5 shrink-0 border border-slate-100">
+                            <img src={prod.img} alt={prod.name} className="w-full h-full object-contain mix-blend-multiply" />
+                          </div>
+                          <div className="flex-1 min-w-0 py-1">
+                            <p className="text-[11px] font-black text-slate-800 truncate uppercase leading-none mb-1">{prod.name}</p>
+                            <p className="text-sm font-black text-[#0866bd]">${prod.price.toLocaleString('es-MX')}</p>
+                          </div>
+                          <div className="w-8 h-8 bg-blue-50 text-[#0866bd] rounded-full flex items-center justify-center shrink-0 group-hover:bg-[#0866bd] group-hover:text-white transition-colors mr-1">
+                            <ExternalLink size={14} />
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Botón WhatsApp Respaldo */}
+                  {msg.needsWhatsappBtn && (
+                    <motion.a 
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      href={`https://wa.me/523332406334?text=${encodeURIComponent(`Hola, estoy buscando: ${msg.userQuery}. ¿Lo tendrán en sucursal?`)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-500 hover:text-white text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl transition-all shadow-sm"
+                    >
+                      <Phone size={14} /> Contactar por WhatsApp
+                    </motion.a>
+                  )}
+                </motion.div>
+              ))}
+              
+              {/* Animación Escribiendo */}
+              <AnimatePresence>
+                {isTyping && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className="flex justify-start"
+                  >
+                    <div className="bg-white border border-slate-200 rounded-[1.5rem] rounded-tl-sm px-4 py-3.5 shadow-sm flex gap-1.5 items-center h-10">
+                      <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} className="w-1.5 h-1.5 bg-slate-400 rounded-full"></motion.div>
+                      <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="w-1.5 h-1.5 bg-slate-400 rounded-full"></motion.div>
+                      <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} className="w-1.5 h-1.5 bg-slate-400 rounded-full"></motion.div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* BARRITAS DE SUGERENCIAS */}
+            <AnimatePresence>
+              {isOpen && messages.length <= 2 && !isTyping && (
+                 <motion.div 
+                   initial={{ opacity: 0, height: 0 }}
+                   animate={{ opacity: 1, height: 'auto' }}
+                   exit={{ opacity: 0, height: 0 }}
+                   className="px-4 py-3 bg-white flex gap-2 overflow-x-auto border-t border-slate-100 shrink-0 custom-scrollbar shadow-[0_-5px_15px_rgba(0,0,0,0.02)]"
+                 >
+                   {quickReplies.map((reply, i) => (
+                     <button 
+                       key={i} 
+                       onClick={reply.action}
+                       className="whitespace-nowrap flex items-center gap-2 bg-slate-50 border border-slate-200 text-slate-600 text-[10px] font-bold uppercase tracking-widest px-4 py-2.5 rounded-xl hover:border-[#0866bd] hover:bg-blue-50 hover:text-[#0866bd] transition-all shadow-sm shrink-0"
+                     >
+                       <reply.icon size={14}/> {reply.text}
+                     </button>
+                   ))}
+                 </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Input de Envío */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 shrink-0">
+              <form onSubmit={handleSend} className="relative flex items-center group">
+                <input 
+                  type="text" 
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Escribe tu mensaje..." 
+                  className="w-full bg-white border-2 border-slate-200 focus:border-[#0866bd] rounded-[1.2rem] pl-5 pr-14 py-3.5 text-[13px] font-medium text-slate-700 outline-none transition-all shadow-sm focus:shadow-[0_0_15px_rgba(8,102,189,0.1)]"
+                />
+                <motion.button 
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  type="submit" 
+                  disabled={!message.trim() || isTyping}
+                  className="absolute right-2 w-10 h-10 bg-[#0866bd] text-white rounded-xl flex items-center justify-center hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-[#0866bd] transition-colors shadow-md"
+                >
+                  <Send size={16} className="ml-0.5" />
+                </motion.button>
+              </form>
+            </div>
+          </motion.div>
         )}
+      </AnimatePresence>
 
-        {/* Input de Envío */}
-        <div className="p-3 bg-white border-t border-slate-100 shrink-0">
-          <form onSubmit={handleSend} className="relative flex items-center">
-            <input 
-              type="text" 
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Escribe un mensaje..." 
-              className="w-full bg-slate-100 border border-transparent focus:border-[#0866bd]/30 rounded-full pl-4 pr-12 py-3 text-sm outline-none transition-all"
-            />
-            <button 
-              type="submit" 
-              disabled={!message.trim() || isTyping}
-              className="absolute right-2 w-9 h-9 bg-[#0866bd] text-white rounded-full flex items-center justify-center hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-[#0866bd] transition-colors"
-            >
-              <Send size={14} className="ml-0.5" />
-            </button>
-          </form>
-        </div>
-      </div>
-
-      {/* BOTÓN FLOTANTE PRINCIPAL */}
+      {/* BOTÓN FLOTANTE PRINCIPAL (NEÓN) */}
       <div className="flex justify-end mt-4">
-        <button 
+        <motion.button 
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
           onClick={() => setIsOpen(!isOpen)}
-          className="group relative w-14 h-14 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-full flex items-center justify-center shadow-lg shadow-yellow-500/30 hover:scale-110 transition-transform duration-300"
+          className="group relative w-16 h-16 bg-gradient-to-tr from-[#0866bd] to-blue-600 rounded-[1.5rem] flex items-center justify-center shadow-[0_10px_25px_rgba(8,102,189,0.4)] border border-blue-400/50 transition-all z-50"
         >
-          <div className="absolute inset-0 bg-yellow-400 rounded-full animate-ping opacity-20 pointer-events-none"></div>
-          {isOpen ? (
-            <X size={28} className="text-slate-900" />
-          ) : (
-            <MessageCircle size={28} className="text-slate-900 group-hover:animate-wiggle" />
+          <div className="absolute inset-0 bg-blue-400 rounded-[1.5rem] animate-ping opacity-20 pointer-events-none"></div>
+          
+          {/* Badge rojo sutil para llamar la atención si está cerrado */}
+          {!isOpen && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 border-2 border-[#f8fafc] rounded-full"></span>
           )}
-        </button>
+
+          <AnimatePresence mode="wait">
+            {isOpen ? (
+              <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }}>
+                <X size={28} className="text-white" />
+              </motion.div>
+            ) : (
+              <motion.div key="chat" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }}>
+                <Bot size={32} className="text-white group-hover:animate-bounce" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.button>
       </div>
 
     </div>

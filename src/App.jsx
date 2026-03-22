@@ -1,5 +1,6 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 
 // Contexto Global (Carrito)
 import { CartProvider } from './context/CartContext'; 
@@ -10,12 +11,31 @@ import Footer from './components/layout/Footer';
 import ScrollToTop from './components/layout/ScrollToTop'; 
 import CartSidebar from './components/ui/CartSidebar';
 import FloatingChat from './components/ui/FloatingChat'; 
+import PageTransition from './components/layout/PageTransition'; // <-- NUEVO
 
 // Páginas (Vistas principales)
 import Home from './pages/Home';
 import CatalogWizard from './pages/CatalogWizard';
 import ProductDetail from './pages/ProductDetail';
 import Talleres from './pages/Talleres'; 
+
+// === MAGIA TOP-TIER: RUTAS ANIMADAS ===
+// Separamos las rutas en este componente para poder usar useLocation()
+function AnimatedRoutes() {
+  const location = useLocation();
+
+  return (
+    // AnimatePresence "espera" a que la animación de salida termine antes de cargar la nueva página
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<PageTransition><Home /></PageTransition>} />
+        <Route path="/catalogo" element={<PageTransition><CatalogWizard /></PageTransition>} />
+        <Route path="/producto/:id" element={<PageTransition><ProductDetail /></PageTransition>} />
+        <Route path="/talleres" element={<PageTransition><Talleres /></PageTransition>} />
+      </Routes>
+    </AnimatePresence>
+  );
+}
 
 export default function App() {
   return (
@@ -31,12 +51,7 @@ export default function App() {
 
         {/* Contenedor principal donde cambian las vistas según la URL */}
         <main className="min-h-screen">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/catalogo" element={<CatalogWizard />} />
-            <Route path="/producto/:id" element={<ProductDetail />} />
-            <Route path="/talleres" element={<Talleres />} />
-          </Routes>
+          <AnimatedRoutes />
         </main>
         
         {/* Pie de página */}

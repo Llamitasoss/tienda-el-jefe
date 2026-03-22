@@ -1,5 +1,6 @@
 import React, { useContext } from 'react';
-import { ShoppingCart, Zap } from 'lucide-react'; // <-- Agregamos el icono Zap
+import { motion } from 'framer-motion';
+import { ShoppingCart, Zap, Flame } from 'lucide-react';
 import { CartContext } from '../../context/CartContext';
 
 export default function ProductCard({ product }) {
@@ -13,67 +14,89 @@ export default function ProductCard({ product }) {
     return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
   };
 
-  // --- MAGIA 3: LIMPIEZA DE NOMBRE PARA PIEZAS UNIVERSALES ---
+  // Limpieza de nombre para piezas universales
   const isUniversal = product.isUniversal === true || (product.name || "").toLowerCase().includes('universal');
   const cleanName = isUniversal ? product.name.replace(/universal/gi, '').trim() : product.name;
+  
+  // Validamos si tiene descuento/promo
+  const isHot = product.isHot || product.promoPrice;
 
   return (
-    <div className="bg-white rounded-[1.5rem] p-4 shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-2 hover:border-[#bae6fd] transition-all duration-300 group flex flex-col h-full cursor-pointer">
-      <div className="relative aspect-square bg-slate-50 rounded-xl mb-4 p-4 flex items-center justify-center overflow-hidden mix-blend-multiply">
+    <motion.div 
+      whileHover={{ y: -8 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      className="bg-white rounded-[2rem] p-3 sm:p-4 border border-slate-100 shadow-[0_8px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_40px_rgba(8,102,189,0.08)] hover:border-blue-100 transition-colors duration-300 group flex flex-col h-full cursor-pointer relative overflow-hidden"
+    >
+      {/* === CONTENEDOR DE IMAGEN (ESTILO ESTUDIO FOTOGRÁFICO) === */}
+      <div className="relative aspect-square bg-gradient-to-tr from-slate-50 to-slate-100/50 group-hover:from-blue-50/50 group-hover:to-blue-100/30 rounded-[1.5rem] mb-4 p-6 flex items-center justify-center overflow-hidden transition-colors duration-500">
         
-        {/* Contenedor de Etiquetas (Hot / Universal) */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
-          {(product.isHot || product.promoPrice) && (
-            <span className="bg-red-500 text-white text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest animate-pulse shadow-sm w-max">
-              HOT
+        {/* ETIQUETAS FLOTANTES (GLASSMORPHISM) */}
+        <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-20">
+          {isHot && (
+            <span className="bg-red-500/90 backdrop-blur-md text-white text-[9px] font-black px-2.5 py-1.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-[0_5px_10px_rgba(239,68,68,0.3)] w-max">
+              <Flame size={10} className="animate-pulse" /> HOT
             </span>
           )}
           
-          {/* ETIQUETA VISUAL PREMIUM PARA UNIVERSALES */}
           {isUniversal && (
-            <span className="bg-emerald-500 text-white text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest shadow-sm flex items-center gap-1 w-max">
+            <span className="bg-emerald-500/90 backdrop-blur-md text-white text-[9px] font-black px-2.5 py-1.5 rounded-lg uppercase tracking-widest flex items-center gap-1 shadow-[0_5px_10px_rgba(16,185,129,0.3)] w-max">
               <Zap size={10} /> Plug & Play
             </span>
           )}
         </div>
         
-        <img 
-          src={mainImg} 
-          alt={cleanName} 
-          className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-500" 
-        />
+        {/* IMAGEN DEL PRODUCTO CON EFECTO MULTIPLY */}
+        <div className="w-full h-full relative z-10 flex items-center justify-center">
+          <img 
+            src={mainImg} 
+            alt={cleanName} 
+            className="max-w-full max-h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-700 ease-out drop-shadow-sm" 
+          />
+        </div>
         
-        <button 
+        {/* BOTÓN DE CARRITO MAGNÉTICO (SE REVELA EN HOVER) */}
+        <motion.button 
+          whileTap={{ scale: 0.9 }}
           onClick={(e) => {
             e.stopPropagation();
             addToCart(product);
           }}
-          className="absolute -bottom-12 right-2 group-hover:bottom-2 bg-gradient-to-r from-yellow-400 to-yellow-500 text-slate-900 w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-all duration-400 hover:scale-110 active:scale-95"
+          className="absolute bottom-3 right-3 translate-y-12 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-900 w-12 h-12 rounded-2xl flex items-center justify-center shadow-[0_10px_20px_rgba(250,204,21,0.4)] transition-all duration-300 z-20 hover:shadow-[0_10px_25px_rgba(250,204,21,0.6)] border border-yellow-300/50"
           title="Agregar al Carrito"
         >
-          <ShoppingCart size={18} />
-        </button>
+          <ShoppingCart size={20} className="ml-[-2px]" />
+        </motion.button>
       </div>
       
-      <div className="flex flex-col flex-grow px-1">
-        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 line-clamp-1">{product.category}</p>
-        <h3 className="font-bold text-[#0866bd] text-sm leading-tight mb-2 line-clamp-2 group-hover:text-blue-800 transition-colors" title={cleanName}>
+      {/* === INFORMACIÓN DEL PRODUCTO === */}
+      <div className="flex flex-col flex-grow px-2 pb-2">
+        <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 line-clamp-1 group-hover:text-[#0866bd]/70 transition-colors">
+          {product.category}
+        </p>
+        
+        <h3 className="font-black text-slate-800 text-sm leading-snug mb-3 line-clamp-2 group-hover:text-[#0866bd] transition-colors" title={cleanName}>
           {cleanName}
         </h3>
         
-        <div className="mt-auto pt-3 border-t border-slate-50 flex items-center justify-between">
+        <div className="mt-auto pt-3 border-t border-slate-100/80 flex items-end justify-between">
           <div className="flex flex-col">
-            {(product.originalPrice || product.promoPrice) && (
-              <span className="text-[10px] text-red-400 line-through font-bold mb-0.5">
-                {formatMXN(product.originalPrice || product.price)}
+            {(product.originalPrice || product.promoPrice) ? (
+              <>
+                <span className="text-[10px] text-red-400/80 line-through font-bold mb-0.5 tracking-wide">
+                  {formatMXN(product.originalPrice || product.price)}
+                </span>
+                <span className="text-xl font-black text-[#0866bd] tracking-tighter">
+                  {formatMXN(product.promoPrice || product.price)}
+                </span>
+              </>
+            ) : (
+              <span className="text-xl font-black text-[#0866bd] tracking-tighter mt-4">
+                {formatMXN(product.price)}
               </span>
             )}
-            <span className="text-xl sm:text-2xl font-black text-[#0866bd] tracking-tighter">
-              {formatMXN(product.promoPrice || product.price)}
-            </span>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
