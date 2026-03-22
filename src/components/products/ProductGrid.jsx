@@ -52,7 +52,7 @@ export default function ProductGrid({ products, title, isInteractiveCarrousel = 
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true, margin: "-50px" }}
               transition={{ duration: 0.5, delay: idx * 0.05 }}
-              className="min-w-[260px] sm:min-w-[320px] snap-center shrink-0 custom-hide-scrollbar"
+              className="w-[240px] sm:w-[280px] h-auto snap-center shrink-0 custom-hide-scrollbar flex flex-col"
             >
               <ProductCard product={product} />
             </motion.div>
