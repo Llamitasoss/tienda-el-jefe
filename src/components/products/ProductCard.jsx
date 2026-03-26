@@ -58,11 +58,10 @@ export default function ProductCard({ product }) {
           />
         </div>
         
-        {/* === BOTÓN DE CARRITO CORREGIDO === */}
-        {/* 1. El contenedor div maneja el hover, posición y transición con Tailwind */}
-        <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 translate-y-0 opacity-100 lg:translate-y-12 lg:opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 z-20">
+        {/* === BOTÓN DE CARRITO === */}
+        {/* Visible en móvil. En PC/Tablet (md) está oculto abajo y sube en Hover */}
+        <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 translate-y-0 opacity-100 md:translate-y-8 md:opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 ease-out z-20">
           
-          {/* 2. El motion.button maneja ÚNICAMENTE el efecto de click (scale) con Framer Motion */}
           <motion.button 
             whileTap={{ scale: 0.9 }}
             onClick={(e) => {
