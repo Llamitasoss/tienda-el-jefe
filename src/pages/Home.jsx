@@ -11,17 +11,16 @@ import { db } from '../firebase/config';
 import ProductGrid from '../components/products/ProductGrid';
 import CategoriasDestacadas from '../components/CategoriasDestacadas';
 
-// === COMPONENTE DE ANIMACIÓN AL HACER SCROLL (MEJORADO CON FÍSICAS) ===
 const ScrollReveal = ({ children, delay = 0, direction = "up" }) => {
-  const yOffset = direction === "up" ? 60 : direction === "down" ? -60 : 0;
-  const xOffset = direction === "left" ? 60 : direction === "right" ? -60 : 0;
+  const yOffset = direction === "up" ? 50 : direction === "down" ? -50 : 0;
+  const xOffset = direction === "left" ? 50 : direction === "right" ? -50 : 0;
   
   return (
     <motion.div
       initial={{ opacity: 0, y: yOffset, x: xOffset }}
       whileInView={{ opacity: 1, y: 0, x: 0 }}
       viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.8, delay, type: "spring", stiffness: 80, damping: 20 }}
+      transition={{ duration: 0.7, delay, type: "spring", stiffness: 80, damping: 20 }}
     >
       {children}
     </motion.div>
@@ -37,7 +36,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Escucha en tiempo real a la colección de productos
     const unsubProductos = onSnapshot(collection(db, "productos"), (snapshot) => {
       let allProds = [];
       snapshot.forEach(doc => {
@@ -51,7 +49,7 @@ export default function Home() {
         const nombreProd = (data.name || data.Nombre || "").toLowerCase();
         const isKit = nombreCat.includes('kit') || nombreProd.includes('kit');
 
-        // Generador de stats estables basados en el ID (Para evitar saltos visuales si no hay data real)
+        // Generador estable para no re-ordenar la grilla visualmente en cada actualización
         const stableVentas = data.ventas ?? ((doc.id.charCodeAt(0) + doc.id.charCodeAt(1)) % 100) + 10;
         const stableRating = data.rating ?? ((doc.id.charCodeAt(2) % 3) + 3) + (doc.id.charCodeAt(3) % 10) / 10;
 
@@ -72,7 +70,6 @@ export default function Home() {
         });
       });
 
-      // Lógica de clasificación ultra-optimizada
       const itemsOferta = allProds.filter(p => p.originalPrice && p.originalPrice > p.price).map(p => ({ ...p, isHot: true })).sort((a, b) => (b.isKit === a.isKit ? 0 : b.isKit ? 1 : -1)).slice(0, 10);
       const itemsMasVendidos = [...allProds].sort((a, b) => b.ventas - a.ventas).slice(0, 10);
       const itemsMejorCalificados = [...allProds].sort((a, b) => b.rating - a.rating).slice(0, 10);
@@ -83,8 +80,7 @@ export default function Home() {
       setMejorCalificados(itemsMejorCalificados);
       setRecienAgregados(itemsRecientes);
       
-      // Pequeño delay artificial para que la animación de carga se vea premium
-      setTimeout(() => setLoading(false), 800);
+      setTimeout(() => setLoading(false), 600);
     });
 
     const unsubResenas = onSnapshot(collectionGroup(db, 'reseñas'), (snapshot) => {
@@ -110,8 +106,6 @@ export default function Home() {
       
       {/* === HERO SECTION NIVEL SUPERIOR === */}
       <div className="relative bg-[#0f172a] min-h-[90vh] flex items-center overflow-hidden mb-16">
-        
-        {/* Fondo Parallax Animado y "Respirando" */}
         <motion.div 
           initial={{ scale: 1.1, opacity: 0 }} 
           animate={{ scale: 1.05, opacity: 0.2 }} 
@@ -120,11 +114,8 @@ export default function Home() {
           style={{ backgroundImage: `url('https://images.unsplash.com/photo-1558981403-c5f9899a28bc?q=80&w=2000&auto=format&fit=crop')` }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a]/70 via-[#0f172a]/90 to-[#f8fafc]"></div>
-        
-        {/* Grid de Ingeniería */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none"></div>
 
-        {/* Luces de Neón Ambientales Top-Tier */}
         <motion.div 
           animate={{ opacity: [0.2, 0.4, 0.2], scale: [1, 1.05, 1], rotate: [0, 5, 0] }} 
           transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
@@ -136,48 +127,43 @@ export default function Home() {
           className="absolute bottom-[-10%] right-[-10%] w-[45rem] h-[45rem] bg-yellow-500 rounded-full blur-[250px] pointer-events-none"
         />
 
-        {/* Contenido Hero */}
         <div className="max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 w-full relative z-10 pt-20 pb-40">
           <motion.div 
-            initial="hidden" 
-            animate="visible" 
-            variants={{
-              hidden: { opacity: 0 },
-              visible: { opacity: 1, transition: { staggerChildren: 0.15 } }
-            }}
+            initial="hidden" animate="visible" 
+            variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.15 } } }}
             className="max-w-4xl"
           >
-            <motion.div variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100 } } }}>
-              <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 text-yellow-400 font-black text-[10px] sm:text-xs uppercase tracking-[0.25em] px-5 py-2.5 rounded-full mb-8 backdrop-blur-md shadow-[0_0_30px_rgba(250,204,21,0.15)] group cursor-default">
+            <motion.div variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0 } }}>
+              <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 text-yellow-400 font-black text-[10px] sm:text-xs uppercase tracking-[0.25em] px-5 py-2.5 rounded-full mb-8 backdrop-blur-md shadow-sm">
                 <Zap size={14} className="fill-current animate-pulse text-yellow-300" /> Distribuidor Especializado
               </div>
             </motion.div>
             
             <motion.h1 
-              variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100 } } }}
+              variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0 } }}
               className="text-5xl sm:text-7xl lg:text-[7.5rem] font-black text-white uppercase tracking-tighter leading-[0.9] mb-8 drop-shadow-2xl"
             >
               El motor de tu <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-[#0866bd] to-blue-400 bg-[length:200%_auto] animate-gradient relative inline-block group">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 via-[#0866bd] to-blue-400 animate-gradient relative inline-block group">
                 Pasión
                 <span className="absolute -bottom-2 sm:-bottom-4 left-0 w-full h-2 sm:h-3 bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full shadow-[0_0_30px_rgba(250,204,21,0.8)] group-hover:scale-x-110 transition-transform duration-500"></span>
               </span>
             </motion.h1>
             
             <motion.p 
-              variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100 } } }}
+              variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0 } }}
               className="text-slate-300 text-lg sm:text-2xl font-medium leading-relaxed mb-12 max-w-2xl border-l-4 border-[#0866bd] pl-6 py-2 bg-gradient-to-r from-slate-900/50 to-transparent backdrop-blur-sm rounded-r-2xl"
             >
               Piezas garantizadas, calidad OEM y el mejor precio digital de Jalisco. Encuentra lo que necesitas en segundos.
             </motion.p>
             
             <motion.div 
-              variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100 } } }}
+              variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0 } }}
               className="flex flex-col sm:flex-row gap-5"
             >
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Link to="/catalogo" className="relative overflow-hidden bg-gradient-to-r from-[#0866bd] to-blue-600 text-white font-black uppercase tracking-[0.15em] text-sm py-5 px-10 rounded-2xl shadow-[0_20px_40px_-10px_rgba(8,102,189,0.8)] flex items-center justify-center group h-full">
-                  <div className="absolute top-0 left-[-100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-25deg] group-hover:left-[200%] transition-all duration-1000 ease-in-out"></div>
+                  <div className="absolute top-0 left-[-100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-25deg] group-hover:left-[200%] transition-all duration-1000"></div>
                   <span className="relative z-10 flex items-center">
                     <Wrench className="mr-3 group-hover:rotate-45 transition-transform duration-300" size={18}/> Buscar Refacciones
                   </span>
@@ -194,7 +180,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* === BARRA DE BENEFICIOS FLOTANTE === */}
+      {/* === BARRA DE BENEFICIOS === */}
       <div className="relative z-20 max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 w-full -mt-32 mb-32">
         <motion.div 
           initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.3, type: "spring" }}
@@ -225,10 +211,9 @@ export default function Home() {
         </motion.div>
       </div>
 
-      {/* === COMPONENTE DE CATEGORÍAS === */}
       <CategoriasDestacadas />
 
-      {/* === CARGADOR PREMIUM O GRID DE PRODUCTOS === */}
+      {/* === GRID DE PRODUCTOS === */}
       <AnimatePresence mode="wait">
         {loading ? (
           <motion.div 
@@ -237,7 +222,7 @@ export default function Home() {
             className="flex flex-col items-center justify-center py-40 text-slate-400"
           >
             <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
-              <Zap className="text-[#0866bd] mb-6 drop-shadow-[0_0_15px_rgba(8,102,189,0.5)]" size={64} />
+              <Zap className="text-[#0866bd] mb-6 drop-shadow-md" size={64} />
             </motion.div>
             <p className="font-black tracking-[0.2em] uppercase text-sm animate-pulse text-[#0866bd]">Sincronizando Almacén...</p>
           </motion.div>
@@ -249,7 +234,7 @@ export default function Home() {
           >
             {ofertas.length > 0 && (
               <ScrollReveal>
-                <ProductGrid products={ofertas} title={<span className="flex items-center text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tight">Liquidación <Flame className="ml-3 text-red-500 animate-bounce drop-shadow-md" size={36} /></span>} isInteractiveCarrousel={true} />
+                <ProductGrid products={ofertas} title={<span className="flex items-center text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tight">Liquidación <Flame className="ml-3 text-red-500 animate-bounce" size={36} /></span>} isInteractiveCarrousel={true} />
               </ScrollReveal>
             )}
 
@@ -259,7 +244,6 @@ export default function Home() {
               </ScrollReveal>
             )}
 
-            {/* === BANNER VIP CON PARALLAX INTERACTIVO === */}
             <ScrollReveal>
               <motion.div 
                 whileHover="hover"
@@ -331,7 +315,7 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* === SECCIÓN DE RESEÑAS TOP TIER === */}
+      {/* === SECCIÓN DE RESEÑAS === */}
       <div className="bg-slate-900 py-24 sm:py-40 relative overflow-hidden mt-10">
         <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-900/40 via-slate-900 to-slate-900 pointer-events-none"></div>
         <div className="absolute bottom-[-20%] left-[-10%] w-[50rem] h-[50rem] bg-[#0866bd]/20 rounded-full blur-[200px] pointer-events-none"></div>
@@ -339,12 +323,12 @@ export default function Home() {
         <div className="max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <ScrollReveal>
             <div className="text-center mb-24 max-w-3xl mx-auto">
-              <span className="inline-flex items-center gap-2 py-2 px-6 rounded-full bg-white/5 border border-white/10 text-slate-300 font-black text-[10px] uppercase tracking-[0.2em] mb-6 backdrop-blur-sm shadow-[0_0_20px_rgba(255,255,255,0.05)]">
+              <span className="inline-flex items-center gap-2 py-2 px-6 rounded-full bg-white/5 border border-white/10 text-slate-300 font-black text-[10px] uppercase tracking-[0.2em] mb-6 backdrop-blur-sm">
                 <Star size={14} className="text-yellow-400 fill-current"/> Comunidad El Jefe
               </span>
               <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white uppercase tracking-tighter leading-[1] drop-shadow-2xl">
                 La confianza de los <br/>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-[#0866bd] to-blue-400 animate-gradient bg-[length:200%_auto]">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-[#0866bd] to-blue-400 animate-gradient">
                   Verdaderos Bikers
                 </span>
               </h2>
@@ -358,7 +342,7 @@ export default function Home() {
                   <motion.div 
                     whileHover={{ y: -15, scale: 1.02 }}
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                    className="bg-white/5 backdrop-blur-2xl p-10 rounded-[2.5rem] border border-white/10 transition-colors duration-500 hover:bg-white/10 hover:border-blue-500/40 relative group shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:shadow-[0_30px_60px_rgba(8,102,189,0.2)] h-full flex flex-col"
+                    className="bg-white/5 backdrop-blur-2xl p-10 rounded-[2.5rem] border border-white/10 transition-colors duration-500 hover:bg-white/10 hover:border-blue-500/40 relative group h-full flex flex-col"
                   >
                     <div className="absolute top-8 right-8 text-white/5 group-hover:text-[#0866bd]/30 transition-colors duration-500">
                       <Quote size={64} className="rotate-180" />
@@ -389,17 +373,16 @@ export default function Home() {
             </div>
           ) : (
             <ScrollReveal>
-              <div className="bg-white/5 backdrop-blur-3xl rounded-[3rem] p-12 sm:p-20 text-center border border-white/10 max-w-3xl mx-auto shadow-[0_30px_60px_rgba(0,0,0,0.4)] relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-700"></div>
-                <div className="w-24 h-24 bg-white/5 rounded-3xl flex items-center justify-center mx-auto mb-10 border border-white/10 shadow-inner relative z-10">
+              <div className="bg-white/5 backdrop-blur-3xl rounded-[3rem] p-12 sm:p-20 text-center border border-white/10 max-w-3xl mx-auto">
+                <div className="w-24 h-24 bg-white/5 rounded-3xl flex items-center justify-center mx-auto mb-10 border border-white/10 shadow-inner">
                   <PackageOpen size={40} className="text-slate-400" />
                 </div>
-                <h3 className="text-3xl font-black text-white uppercase tracking-tight mb-5 relative z-10">Sé el primero en dejar huella</h3>
-                <p className="text-slate-400 text-lg mb-12 max-w-md mx-auto font-medium relative z-10">
+                <h3 className="text-3xl font-black text-white uppercase tracking-tight mb-5">Sé el primero en dejar huella</h3>
+                <p className="text-slate-400 text-lg mb-12 max-w-md mx-auto font-medium">
                   Tu experiencia nos ayuda a mejorar. Compra tu primera refacción y cuéntale a la comunidad qué te pareció.
                 </p>
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="relative z-10 inline-block">
-                  <Link to="/catalogo" className="inline-flex items-center justify-center bg-white text-slate-900 font-black uppercase tracking-[0.15em] text-sm py-5 px-10 rounded-2xl shadow-[0_20px_40px_rgba(255,255,255,0.15)] transition-all">
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="inline-block">
+                  <Link to="/catalogo" className="inline-flex items-center justify-center bg-white text-slate-900 font-black uppercase tracking-[0.15em] text-sm py-5 px-10 rounded-2xl">
                     Ir de Compras <ArrowRight size={20} className="ml-3"/>
                   </Link>
                 </motion.div>
