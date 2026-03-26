@@ -31,12 +31,10 @@ export default function Header() {
   const [catalogCache, setCatalogCache] = useState(null); 
   const searchContainerRef = useRef(null);
 
-  // === SCROLL INTELIGENTE Y ESTABLE ===
   const [isScrolled, setIsScrolled] = useState(false);
   const { scrollY } = useScroll();
 
   useMotionValueEvent(scrollY, "change", (latest) => {
-    // Al pasar 20px, activamos el Glassmorphism, pero NO alteramos la estructura DOM
     setIsScrolled(latest > 20); 
   });
 
@@ -50,7 +48,6 @@ export default function Header() {
   const cartCount = cartItems.reduce((total, item) => total + item.qty, 0);
   const [isCartBouncing, setIsCartBouncing] = useState(false);
 
-  // Efecto "Pop" cuando cambia el carrito
   useEffect(() => {
     if (cartCount > 0) {
       setIsCartBouncing(true);
@@ -128,7 +125,7 @@ export default function Header() {
       navigate(`/catalogo?q=${encodeURIComponent(searchTerm.trim())}`);
       setShowDropdown(false);
       setIsSearchFocused(false);
-      document.activeElement.blur(); // Quita el teclado en móviles
+      document.activeElement.blur(); 
     } else {
       navigate('/catalogo');
     }
@@ -143,7 +140,6 @@ export default function Header() {
 
   return (
     <>
-      {/* OVERLAY DE BÚSQUEDA (Blur Background) */}
       <AnimatePresence>
         {isSearchFocused && (
           <motion.div 
@@ -153,23 +149,22 @@ export default function Header() {
         )}
       </AnimatePresence>
 
-      {/* HEADER PRINCIPAL ROCK-SOLID */}
       <motion.header 
-        className="sticky top-0 z-[100] w-full border-b border-blue-400/20"
+        className="sticky top-0 z-[100] w-full border-b border-white/5"
         animate={{ 
-          backgroundColor: isScrolled ? 'rgba(8, 102, 189, 0.95)' : 'rgba(8, 102, 189, 1)',
-          backdropFilter: isScrolled ? 'blur(12px)' : 'blur(0px)',
-          boxShadow: isScrolled ? '0 10px 30px -10px rgba(0,0,0,0.4)' : '0 4px 6px -1px rgba(0,0,0,0.1)'
+          backgroundColor: isScrolled ? 'rgba(8, 102, 189, 0.90)' : 'rgba(8, 102, 189, 1)',
+          backdropFilter: isScrolled ? 'blur(16px)' : 'blur(0px)',
+          boxShadow: isScrolled ? '0 15px 40px -10px rgba(0,0,0,0.3)' : '0 4px 15px -5px rgba(0,0,0,0.1)'
         }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.4 }}
       >
-        <div className="max-w-[85rem] mx-auto">
+        <div className="max-w-[85rem] mx-auto relative z-20">
           
           {/* TOP BAR */}
           <motion.div 
-            animate={{ padding: isScrolled ? '0.5rem 1.5rem' : '1rem 1.5rem' }}
+            animate={{ paddingTop: isScrolled ? '0.75rem' : '1.25rem', paddingBottom: '0.75rem' }}
             transition={{ duration: 0.3 }}
-            className="flex items-center justify-between gap-4 relative z-20"
+            className="flex items-center justify-between gap-4 px-4 sm:px-6 lg:px-8"
           >
             {/* LOGO & BRANDING */}
             <div className="flex items-center gap-3 sm:gap-5 shrink-0">
@@ -336,41 +331,58 @@ export default function Header() {
             </div>
           </motion.div>
 
-          {/* SUB-NAV (BARRA INFERIOR DE NAVEGACIÓN) - SIEMPRE PRESENTE */}
-          <div className="hidden lg:flex bg-[#043c72]/40 backdrop-blur-sm border-t border-white/10 justify-center relative overflow-hidden">
-            <div className="flex gap-2 p-1" onMouseLeave={() => setHoveredNav(null)}>
-              {NAV_LINKS.map((link) => (
-                <Link 
-                  key={link.path}
-                  to={link.path} 
-                  onMouseEnter={() => setHoveredNav(link.path)}
-                  className="relative px-6 py-3 text-blue-100 font-black text-[10px] uppercase tracking-[0.2em] flex items-center transition-colors hover:text-white z-10"
-                >
-                  {link.name}
-                  {link.isVIP && (
-                    <span className="ml-2.5 flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-900 text-[9px] font-black px-2 py-0.5 rounded shadow-[0_0_10px_rgba(250,204,21,0.3)]">
-                      <Zap size={10} className="fill-current"/> VIP
+          {/* === FLOATING DOCK NAV (CLASE MUNDIAL) === */}
+          <div className="hidden lg:flex justify-center pb-3 pt-1 w-full relative z-20">
+            <div 
+              className="flex items-center gap-1 p-1.5 bg-[#03254c]/60 backdrop-blur-xl border border-white/10 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.3)]"
+              onMouseLeave={() => setHoveredNav(null)}
+            >
+              {NAV_LINKS.map((link) => {
+                const isActive = location.pathname === link.path;
+                return (
+                  <Link 
+                    key={link.path} 
+                    to={link.path} 
+                    onMouseEnter={() => setHoveredNav(link.path)} 
+                    className="relative px-7 py-2.5 rounded-full z-10 transition-colors flex items-center"
+                  >
+                    {/* Hover Magnético de Cristal */}
+                    {hoveredNav === link.path && (
+                      <motion.div 
+                        layoutId="nav-hover-pill" 
+                        className="absolute inset-0 bg-white/10 rounded-full" 
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      />
+                    )}
+                    
+                    {/* Estado Activo con Neon Glow */}
+                    {isActive && (
+                      <motion.div 
+                        layoutId="nav-active-pill" 
+                        className="absolute inset-0 border border-yellow-400/50 bg-yellow-400/10 rounded-full shadow-[0_0_15px_rgba(250,204,21,0.2)]" 
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      />
+                    )}
+                    
+                    {/* Texto del Enlace */}
+                    <span className={`relative z-10 font-black text-[10px] uppercase tracking-[0.2em] flex items-center transition-colors duration-300 ${isActive ? 'text-yellow-400 drop-shadow-sm' : 'text-blue-100 hover:text-white'}`}>
+                      {link.name}
+                      {link.isVIP && (
+                        <span className="ml-2 flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-900 text-[9px] font-black px-2 py-[2px] rounded-md shadow-sm">
+                          <Zap size={10} className="fill-current"/> VIP
+                        </span>
+                      )}
                     </span>
-                  )}
-                  
-                  {hoveredNav === link.path && (
-                    <motion.div
-                      layoutId="nav-indicator"
-                      className="absolute bottom-0 left-0 right-0 h-1 bg-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.5)]"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    />
-                  )}
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           </div>
 
         </div>
       </motion.header>
 
+      {/* Modales fuera del flujo principal para evitar conflictos */}
       <MobileMenu 
         isOpen={mobileMenu} 
         onClose={() => setMobileMenu(false)} 

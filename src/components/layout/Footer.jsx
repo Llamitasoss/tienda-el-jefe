@@ -19,10 +19,11 @@ const itemVariants = {
 export default function Footer() {
   const currentYear = new Date().getFullYear();
 
-  // Coordenadas de ejemplo para el iFrame
-  const mapUrl = "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3734.123456789!2d-103.2661!3d20.5912!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjDCsDM1JzI4LjMiTiAxMDPCsDE1JzU4LjAiVw!5e0!3m2!1ses-419!2smx!4v1711000000000!5m2!1ses-419!2smx";
-  // Enlace directo a Google Maps para dispositivos móviles
-  const navigationUrl = "https://goo.gl/maps/tuEnlaceDirectoAQUI"; 
+  // Coordenadas actualizadas a: Marcos Lara 60, Santa Paula, Tonalá, Jalisco
+  const mapUrl = "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3733.916172605804!2d-103.26620572398492!3d20.632288080918967!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8428b43abf92f2ab%3A0x8e8eb4ab9c34a2e3!2sMarcos%20Lara%2060%2C%20Santa%20Paula%2C%2045420%20Tonal%C3%A1%2C%20Jal.!5e0!3m2!1ses-419!2smx!4v1711000000000!5m2!1ses-419!2smx";
+  
+  // Enlace directo a Google Maps para dispositivos móviles (Iniciar Ruta)
+  const navigationUrl = "https://goo.gl/maps/U8t2hH5ZgD2B1qC79"; // Enlace acortado a la misma dirección
 
   return (
     <footer className="relative bg-gradient-to-b from-[#0866bd] to-[#043e75] text-white pt-20 pb-8 border-t-[8px] border-[#facc15] overflow-hidden z-10 mt-auto">
