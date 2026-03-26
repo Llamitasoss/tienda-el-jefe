@@ -3,9 +3,8 @@ import { Link } from 'react-router-dom';
 import { motion, useMotionTemplate, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { 
   Wrench, Package, Settings, Cog, 
-  Activity, Zap, CircleDashed, Star 
+  Activity, Zap, CircleDashed, Star, ArrowRight 
 } from 'lucide-react';
-import { cn } from '../utils/utils';
 
 const MAIN_CATEGORIES = [
   { id: 'MANTENIMIENTO', nombre: 'Mantenimiento', icon: Wrench },
@@ -18,20 +17,40 @@ const MAIN_CATEGORIES = [
   { id: 'ACCESORIOS', nombre: 'Accesorios', icon: Star }
 ];
 
+// === ANIMACIONES DE ENTRADA ESCALONADA ===
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 50, scale: 0.9 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    scale: 1,
+    transition: { type: "spring", stiffness: 100, damping: 20 }
+  }
+};
+
 const TiltCard = ({ cat }) => {
-  // --- Valores para el efecto 3D ---
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
+  // --- Valores para el efecto 3D interactivo ---
+  const mouseX = useMotionValue(0.5); // Empezamos en el centro (0 a 1)
+  const mouseY = useMotionValue(0.5);
 
-  // Física de resortes para que el movimiento sea suave y no brusco
-  const mouseXSpring = useSpring(x, { stiffness: 300, damping: 30 });
-  const mouseYSpring = useSpring(y, { stiffness: 300, damping: 30 });
+  // Físicas de resorte para suavizar el seguimiento del mouse
+  const springConfig = { damping: 25, stiffness: 200, mass: 0.5 };
+  const smoothMouseX = useSpring(mouseX, springConfig);
+  const smoothMouseY = useSpring(mouseY, springConfig);
 
-  // Transformar la posición del mouse en grados de inclinación (max 15 grados)
-  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["15deg", "-15deg"]);
-  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-15deg", "15deg"]);
+  // Mapeamos las coordenadas (0 a 1) a grados de inclinación (-12deg a 12deg)
+  const rotateX = useTransform(smoothMouseY, [0, 1], [12, -12]);
+  const rotateY = useTransform(smoothMouseX, [0, 1], [-12, 12]);
 
-  // --- Valores para el brillo (Spotlight) sutil ---
+  // --- Valores para el resplandor (Spotlight) ---
   const spotX = useMotionValue(0);
   const spotY = useMotionValue(0);
 
@@ -40,92 +59,126 @@ const TiltCard = ({ cat }) => {
     const width = rect.width;
     const height = rect.height;
     
-    // Posición del mouse relativa a la tarjeta
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    // Posición exacta del mouse en px
+    const xPx = e.clientX - rect.left;
+    const yPx = e.clientY - rect.top;
 
-    // Calcular porcentaje para el 3D (-0.5 a 0.5)
-    x.set(mouseX / width - 0.5);
-    y.set(mouseY / height - 0.5);
+    // Actualizamos valores para el spotlight
+    spotX.set(xPx);
+    spotY.set(yPx);
 
-    // Setear posición exacta para el brillo
-    spotX.set(mouseX);
-    spotY.set(mouseY);
+    // Actualizamos valores normalizados (0 a 1) para el 3D
+    mouseX.set(xPx / width);
+    mouseY.set(yPx / height);
   }
 
   function handleMouseLeave() {
-    // Regresar la tarjeta a su estado original suavemente
-    x.set(0);
-    y.set(0);
+    // Retorno suave al centro
+    mouseX.set(0.5);
+    mouseY.set(0.5);
   }
 
   const IconComponent = cat.icon;
 
   return (
-    // El contenedor padre necesita 'perspective' para que el 3D funcione
-    <div style={{ perspective: 1000 }} className="w-full h-56">
+    // El contenedor padre provee la perspectiva para el 3D
+    <motion.div variants={cardVariants} style={{ perspective: 1200 }} className="w-full h-64">
       <motion.div
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
-        className="group relative h-full w-full rounded-3xl bg-[#0f172a] border border-slate-800 shadow-xl cursor-pointer transition-colors duration-500 hover:border-[#0866bd]/50"
+        className="group relative h-full w-full rounded-[2rem] bg-[#0f172a]/90 backdrop-blur-sm border border-slate-800/80 shadow-[0_20px_40px_rgba(0,0,0,0.3)] cursor-pointer transition-colors duration-500 hover:border-[#0866bd]/50 hover:shadow-[0_20px_50px_rgba(8,102,189,0.15)] overflow-hidden"
       >
         <Link to={`/catalogo?categoria=${cat.id}`} className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6">
-          {/* Contenido (elevado en el eje Z para dar profundidad) */}
-          <div style={{ transform: "translateZ(50px)" }} className="flex flex-col items-center">
-            
-            {/* Contenedor del ícono con tus colores de marca */}
-            <div className="w-16 h-16 rounded-2xl bg-[#1e293b] flex items-center justify-center mb-4 transition-all duration-300 group-hover:bg-[#0866bd] group-hover:border group-hover:border-yellow-400 group-hover:shadow-[0_0_20px_rgba(8,102,189,0.5)] group-hover:scale-110">
-              <IconComponent size={32} className="text-slate-400 transition-colors group-hover:text-yellow-400" />
+          
+          {/* Capa de contenido elevada en el eje Z */}
+          <motion.div 
+            style={{ transform: "translateZ(60px)" }} 
+            className="flex flex-col items-center pointer-events-none"
+          >
+            {/* Contenedor del ícono */}
+            <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mb-5 transition-all duration-500 group-hover:bg-[#0866bd] group-hover:shadow-[0_0_30px_rgba(8,102,189,0.6)] group-hover:-translate-y-2 border border-slate-700/50 group-hover:border-blue-400/50">
+              <IconComponent strokeWidth={2} className="w-8 h-8 text-slate-400 transition-colors duration-500 group-hover:text-white" />
             </div>
             
-            <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 transition-colors group-hover:text-white">
+            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-300 transition-colors duration-500 group-hover:text-yellow-400 mb-2">
               {cat.nombre}
             </h3>
             
-            {/* Pequeño acento decorativo que aparece en hover */}
-            <div className="h-1 w-0 bg-yellow-400 mt-3 rounded-full transition-all duration-500 group-hover:w-8 shadow-[0_0_10px_rgba(250,204,21,0.5)]"></div>
-          </div>
+            {/* Flecha indicadora que entra suavemente en hover */}
+            <div className="flex items-center text-xs font-bold text-[#0866bd] opacity-0 translate-y-2 transition-all duration-500 group-hover:opacity-100 group-hover:translate-y-0">
+              Explorar <ArrowRight size={14} className="ml-1" />
+            </div>
+            
+          </motion.div>
         </Link>
 
-        {/* Brillo de dos tonos (Azul corporativo + Centro Amarillo) que sigue el mouse */}
+        {/* --- SPOTLIGHT DINÁMICO --- */}
+        {/* Usamos un background con máscara para que el brillo se vea sofisticado y no "pinte" el texto */}
         <motion.div
-          className="pointer-events-none absolute -inset-px rounded-3xl opacity-0 transition duration-500 group-hover:opacity-100 z-10"
+          className="pointer-events-none absolute -inset-px rounded-[2rem] opacity-0 transition-opacity duration-500 group-hover:opacity-100 z-10"
           style={{
             background: useMotionTemplate`
               radial-gradient(
-                300px circle at ${spotX}px ${spotY}px,
-                rgba(8, 102, 189, 0.2),
-                transparent 80%
-              ),
+                400px circle at ${spotX}px ${spotY}px,
+                rgba(8, 102, 189, 0.15),
+                transparent 60%
+              )
+            `,
+          }}
+        />
+        {/* Segundo spotlight más pequeño para el centro del cursor */}
+        <motion.div
+          className="pointer-events-none absolute -inset-px rounded-[2rem] opacity-0 transition-opacity duration-500 group-hover:opacity-100 z-10 mix-blend-overlay"
+          style={{
+            background: useMotionTemplate`
               radial-gradient(
-                100px circle at ${spotX}px ${spotY}px,
-                rgba(250, 204, 21, 0.08),
+                150px circle at ${spotX}px ${spotY}px,
+                rgba(250, 204, 21, 0.1),
                 transparent 80%
               )
             `,
           }}
         />
       </motion.div>
-    </div>
+    </motion.div>
   );
 };
 
 export default function CategoriasDestacadas() {
   return (
-    <div className="mx-auto w-full max-w-[85rem] px-4 sm:px-6 lg:px-8 mb-32 animate-fade-in-up">
-      <div className="mb-14 flex flex-col items-center text-center">
-        <h2 className="text-3xl font-black uppercase tracking-tight text-slate-900 sm:text-4xl">
-          Categorías <span className="bg-gradient-to-r from-blue-600 to-[#0866bd] bg-clip-text text-transparent">Destacadas</span>
-        </h2>
-        <div className="mt-4 h-1.5 w-20 rounded-full bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.5)]"></div>
-      </div>
+    <div className="mx-auto w-full max-w-[85rem] px-4 sm:px-6 lg:px-8 mb-32 relative z-10">
       
-      <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.7, type: "spring" }}
+        className="mb-16 flex flex-col items-center text-center"
+      >
+        <span className="inline-block py-1.5 px-4 rounded-full bg-blue-50 border border-blue-100 text-[#0866bd] font-black text-[10px] uppercase tracking-[0.25em] mb-4">
+          Catálogo Principal
+        </span>
+        <h2 className="text-4xl sm:text-5xl font-black uppercase tracking-tighter text-slate-900 leading-none">
+          Encuentra por <br className="sm:hidden" />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0866bd] to-blue-500">Categoría</span>
+        </h2>
+        <div className="mt-6 h-1.5 w-24 rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 shadow-[0_0_15px_rgba(250,204,21,0.5)]"></div>
+      </motion.div>
+      
+      {/* Contenedor principal que lanza la animación en cascada a los hijos */}
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-50px" }}
+        className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"
+      >
         {MAIN_CATEGORIES.map((cat, i) => (
-          <TiltCard key={i} cat={cat} />
+          <TiltCard key={cat.id} cat={cat} />
         ))}
-      </div>
+      </motion.div>
+      
     </div>
   );
 }
