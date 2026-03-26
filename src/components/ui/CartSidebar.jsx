@@ -1,12 +1,12 @@
 import React, { useContext, useState, useEffect, useMemo } from 'react';
-import { X, Trash2, ShoppingBag, User, Phone, Loader2, CheckCircle2, AlertCircle, ChevronRight, Zap, Sparkles, Plus } from 'lucide-react';
+import { X, Trash2, ShoppingBag, User, Loader2, CheckCircle2, AlertCircle, Sparkles, Plus, Zap } from 'lucide-react';
 import { CartContext } from '../../context/CartContext';
-import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc, getDocs, query, limit, where } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- CONFIGURACIÓN DE LA BARRA GAMIFICADA ---
-const GOAL_AMOUNT = 1500; // Meta de compra para el premio/envío
+const GOAL_AMOUNT = 1500; 
 const GOAL_MESSAGE_REACHED = "¡Ganaste un lubricante de cadena GRATIS!";
 const GOAL_MESSAGE_PENDING = "para llevarte un lubricante GRATIS";
 
@@ -19,11 +19,13 @@ export default function CartSidebar() {
   const [successMsg, setSuccessMsg] = useState('');
   const [stockErrors, setStockErrors] = useState({});
   const [realTimeStock, setRealTimeStock] = useState({});
+  
+  // NUEVO: Estado para el producto recomendado dinámico
+  const [upsellItem, setUpsellItem] = useState(null);
+  const [loadingUpsell, setLoadingUpsell] = useState(false);
 
   // Calcular totales
   const total = useMemo(() => cartItems.reduce((acc, item) => acc + ((item.promoPrice || item.price) * item.qty), 0), [cartItems]);
-  
-  // Calcular progreso de la barra gamificada
   const progressPercent = Math.min((total / GOAL_AMOUNT) * 100, 100);
   const amountLeft = Math.max(GOAL_AMOUNT - total, 0);
 
@@ -45,7 +47,7 @@ export default function CartSidebar() {
           const docSnap = await getDoc(docRef);
           
           if (docSnap.exists()) {
-            const currentStock = docSnap.data().stock;
+            const currentStock = parseInt(docSnap.data().stock) || 0;
             stockData[item.id] = currentStock;
             
             if (item.qty > currentStock) {
@@ -63,6 +65,53 @@ export default function CartSidebar() {
     };
 
     checkStock();
+  }, [isCartOpen, cartItems]);
+
+  // === CROSS-SELLING DINÁMICO ===
+  // Busca un producto real en Firebase para recomendar
+  useEffect(() => {
+    if (!isCartOpen || cartItems.length === 0) return;
+
+    const fetchUpsellItem = async () => {
+      setLoadingUpsell(true);
+      try {
+        // Buscamos productos que tengan stock (para no recomendar algo agotado)
+        // Nota: Firestore requiere un índice compuesto si usas > y limit juntos, 
+        // así que traemos algunos y filtramos en cliente para mantenerlo simple.
+        const q = query(collection(db, "productos"), limit(10)); 
+        const querySnapshot = await getDocs(q);
+        
+        let foundItem = null;
+        
+        for (const document of querySnapshot.docs) {
+          const data = document.data();
+          const stock = parseInt(data.stock) || 0;
+          const isAlreadyInCart = cartItems.some(cartItem => cartItem.id === document.id);
+          
+          // Condición: Que tenga stock y no esté ya en el carrito
+          if (stock > 0 && !isAlreadyInCart) {
+            foundItem = {
+              id: document.id,
+              name: data.name || data.Nombre,
+              price: data.promoPrice || data.price || data.Precio,
+              sku: data.sku || data.Codigo || 'N/A',
+              img: data.images?.[0] || data.image || "https://placehold.co/100x100/f8fafc/0866BD?text=Item",
+              stock: stock
+            };
+            break; // Encontramos uno válido, nos detenemos
+          }
+        }
+        
+        setUpsellItem(foundItem);
+
+      } catch (error) {
+        console.error("Error buscando recomendación:", error);
+      } finally {
+        setLoadingUpsell(false);
+      }
+    };
+
+    fetchUpsellItem();
   }, [isCartOpen, cartItems]);
 
   const handlePhoneChange = (e) => {
@@ -125,16 +174,6 @@ export default function CartSidebar() {
       return;
     }
     updateQty(item.id, delta);
-  };
-
-  // Elemento "Upsell" de ejemplo (Podrías conectarlo a Firebase luego)
-  const upsellItem = {
-    id: "upsell_1",
-    name: "Aflojatodo Multiusos WD-40 300ml",
-    price: 185,
-    sku: "WD40-300",
-    img: "https://placehold.co/100x100/f8fafc/0866BD?text=WD-40",
-    stock: 20
   };
 
   return (
@@ -248,13 +287,11 @@ export default function CartSidebar() {
                       exit={{ opacity: 0, scale: 0.9, x: -20, transition: { duration: 0.2 } }}
                       className={`bg-white p-4 rounded-[1.5rem] shadow-[0_10px_20px_rgba(0,0,0,0.02)] border transition-all relative z-10 flex gap-4 sm:gap-5 group hover:shadow-[0_15px_30px_rgba(8,102,189,0.06)] hover:border-blue-100 ${error ? 'border-red-300 bg-red-50/30' : 'border-slate-100'}`}
                     >
-                      {/* Imagen con badge */}
                       <div className="w-24 h-24 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-100 p-2 flex items-center justify-center overflow-hidden shrink-0 relative group-hover:bg-blue-50/50 transition-colors">
                         {error && <div className="absolute inset-0 bg-red-500/10 z-10 pointer-events-none"></div>}
                         <img src={mainImg} alt={item.name} className="max-w-full max-h-full object-contain mix-blend-multiply group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500" />
                       </div>
                       
-                      {/* Info y Controles */}
                       <div className="flex flex-col flex-1 py-0.5">
                         <div className="flex justify-between items-start gap-2 mb-1">
                           <div className="flex flex-col">
@@ -266,7 +303,6 @@ export default function CartSidebar() {
                           </button>
                         </div>
 
-                        {/* Error de Stock */}
                         <AnimatePresence>
                           {error && (
                             <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-[10px] font-bold text-red-500 flex items-center gap-1 mt-1 bg-red-50 p-1.5 rounded-lg border border-red-100">
@@ -297,33 +333,40 @@ export default function CartSidebar() {
                   );
                 })}
                 
-                {/* === CROSS-SELLING INTELIGENTE (UPSELL) === */}
-                {!cartItems.find(i => i.id === upsellItem.id) && cartItems.length > 0 && cartItems.length < 4 && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
-                    className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-[1.5rem] p-4 relative overflow-hidden"
-                  >
-                    <div className="absolute top-0 right-0 bg-blue-500 text-white text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-bl-xl z-10">
-                      Sugerencia del Jefe
-                    </div>
-                    <div className="flex items-center gap-4 relative z-10 pt-2">
-                      <img src={upsellItem.img} alt={upsellItem.name} className="w-16 h-16 rounded-xl object-cover bg-white border border-blue-100 p-1 shadow-sm mix-blend-multiply" />
-                      <div className="flex-1">
-                        <h5 className="text-[11px] font-black text-slate-800 uppercase tracking-tight leading-snug">{upsellItem.name}</h5>
-                        <p className="text-[10px] text-slate-500 font-medium mt-0.5">Ideal para mantenimiento rápido</p>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-sm font-black text-[#0866bd] tracking-tighter">{formatMXN(upsellItem.price)}</span>
-                          <button 
-                            onClick={() => addToCart(upsellItem, 1)}
-                            className="bg-white border border-blue-200 text-[#0866bd] hover:bg-[#0866bd] hover:text-white hover:border-[#0866bd] p-1.5 rounded-lg transition-all shadow-sm active:scale-95"
-                          >
-                            <Plus size={16} strokeWidth={3}/>
-                          </button>
+                {/* === CROSS-SELLING DINÁMICO DESDE FIREBASE === */}
+                <AnimatePresence>
+                  {upsellItem && cartItems.length > 0 && cartItems.length < 4 && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }} 
+                      animate={{ opacity: 1, y: 0 }} 
+                      exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-[1.5rem] p-4 relative overflow-hidden"
+                    >
+                      {loadingUpsell && <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-20 flex items-center justify-center"><Loader2 size={24} className="animate-spin text-[#0866bd]" /></div>}
+                      
+                      <div className="absolute top-0 right-0 bg-blue-500 text-white text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-bl-xl z-10">
+                        Sugerencia del Jefe
+                      </div>
+                      <div className="flex items-center gap-4 relative z-10 pt-2">
+                        <img src={upsellItem.img} alt={upsellItem.name} className="w-16 h-16 rounded-xl object-contain bg-white border border-blue-100 p-1.5 shadow-sm mix-blend-multiply" />
+                        <div className="flex-1">
+                          <h5 className="text-[11px] font-black text-slate-800 uppercase tracking-tight leading-snug line-clamp-1">{upsellItem.name}</h5>
+                          <p className="text-[10px] text-slate-500 font-bold mt-0.5 uppercase tracking-widest">SKU: {upsellItem.sku}</p>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-sm font-black text-[#0866bd] tracking-tighter">{formatMXN(upsellItem.price)}</span>
+                            <button 
+                              onClick={() => addToCart(upsellItem, 1)}
+                              className="bg-white border border-blue-200 text-[#0866bd] hover:bg-[#0866bd] hover:text-white hover:border-[#0866bd] p-1.5 rounded-lg transition-all shadow-sm active:scale-95 flex items-center gap-1"
+                            >
+                              <Plus size={16} strokeWidth={3}/> <span className="text-[10px] font-black pr-1">Agregar</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </>
             )}
           </AnimatePresence>
@@ -337,7 +380,6 @@ export default function CartSidebar() {
               className="bg-white border-t border-slate-100 shadow-[0_-20px_50px_rgba(0,0,0,0.06)] z-20 shrink-0 relative"
             >
               
-              {/* Resumen de Costos Sutil */}
               <div className="px-6 py-4 border-b border-slate-50 flex flex-col gap-2 bg-slate-50/50">
                 <div className="flex justify-between items-center text-[11px] font-black text-slate-500 uppercase tracking-widest">
                   <span>Subtotal ({cartItems.length} items)</span>
@@ -351,7 +393,6 @@ export default function CartSidebar() {
                 )}
               </div>
 
-              {/* Formulario de Contacto Compacto */}
               <div className="p-6 pb-2">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-6 h-6 bg-blue-50 text-[#0866bd] rounded-lg flex items-center justify-center border border-blue-100"><User size={12} strokeWidth={3}/></div>
@@ -379,7 +420,6 @@ export default function CartSidebar() {
                 </div>
               </div>
 
-              {/* Botón de Pago Principal */}
               <div className="p-6 pt-4 bg-white relative">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/10 rounded-full blur-[40px] pointer-events-none"></div>
                 

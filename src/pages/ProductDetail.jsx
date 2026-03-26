@@ -2,10 +2,10 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { doc, getDoc, collection, getDocs, limit, query, addDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useSpring, useMotionTemplate } from 'framer-motion';
 import { 
   ShieldCheck, Loader2, AlertCircle, Check, Star, StarHalf, Shield, Share2, Store, X, Search, CheckCircle, UserCircle2, Send, Zap, ShoppingCart, MessageCircle, ChevronRight, Package, ZoomIn,
-  ScanSearch, CreditCard, RefreshCcw, MapPin, Clock
+  ScanSearch, CreditCard, RefreshCcw, MapPin, Clock, Flame
 } from 'lucide-react';
 import { CartContext } from '../context/CartContext';
 import ProductGrid from '../components/products/ProductGrid';
@@ -54,15 +54,18 @@ export default function ProductDetail() {
   
   const [tabSearchTerm, setTabSearchTerm] = useState('');
   
-  // --- LÓGICA INNER ZOOM Y HOLO-SCANNER ---
+  // === SOLUCIÓN: LUPA OPTIMIZADA A 60FPS (Sin Lag) ===
   const [isZooming, setIsZooming] = useState(false);
   const [isScannerActive, setIsScannerActive] = useState(false); 
-  const [bgPosition, setBgPosition] = useState('50% 50%');
   const imageContainerRef = useRef(null);
 
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
-  const springConfig = { damping: 30, stiffness: 400, mass: 0.5 };
+  const bgX = useMotionValue(50); // Background X en porcentaje
+  const bgY = useMotionValue(50); // Background Y en porcentaje
+  
+  // Física ajustada para que siga el mouse casi de inmediato (snappy)
+  const springConfig = { damping: 25, stiffness: 600, mass: 0.05 };
   const smoothMouseX = useSpring(mouseX, springConfig);
   const smoothMouseY = useSpring(mouseY, springConfig);
 
@@ -70,23 +73,28 @@ export default function ProductDetail() {
     if (!imageContainerRef.current || isScannerActive) return; 
     const { left, top, width, height } = imageContainerRef.current.getBoundingClientRect();
     
+    // Posición del mouse en píxeles (Para mover la lupa física)
     const x = e.clientX - left;
     const y = e.clientY - top;
     
-    const xPercent = (x / width) * 100;
-    const yPercent = (y / height) * 100;
+    mouseX.set(x);
+    mouseY.set(y);
     
-    const safeX = Math.max(0, Math.min(100, xPercent));
-    const safeY = Math.max(0, Math.min(100, yPercent));
+    // Posición en porcentajes (Para mover la imagen de fondo SIN usar React state)
+    const xPercent = Math.max(0, Math.min(100, (x / width) * 100));
+    const yPercent = Math.max(0, Math.min(100, (y / height) * 100));
 
-    setBgPosition(`${safeX}% ${safeY}%`);
+    bgX.set(xPercent);
+    bgY.set(yPercent);
   };
 
   const handleMouseEnter = () => { if(!isScannerActive) setIsZooming(true); };
   const handleMouseLeave = () => {
     setIsZooming(false);
-    setBgPosition('50% 50%');
+    bgX.set(50);
+    bgY.set(50);
   };
+  // ====================================================
 
   const [addedAnimation, setAddedAnimation] = useState(false);
   const [shareText, setShareText] = useState('Compartir');
@@ -277,6 +285,7 @@ export default function ProductDetail() {
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       </AnimatePresence>
 
+      {/* === STICKY ACTION BAR (Aparece al hacer scroll) === */}
       <AnimatePresence>
         {showStickyBar && product.stock > 0 && (
           <motion.div 
@@ -318,6 +327,7 @@ export default function ProductDetail() {
 
         <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
           
+          {/* === COLUMNA IZQUIERDA: GALERÍA E INTERACCIÓN === */}
           <div className="w-full lg:w-[55%] flex flex-col sm:flex-row gap-6 relative">
             
             {product.images.length > 1 && (
@@ -348,7 +358,7 @@ export default function ProductDetail() {
               onMouseMove={handleMouseMove}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
-              className={`bg-white rounded-[2rem] flex items-center justify-center border border-slate-100 shadow-[0_15px_40px_rgb(0,0,0,0.03)] relative overflow-hidden group transition-all duration-700 hover:shadow-[0_20px_50px_rgba(8,102,189,0.05)] flex-1 min-h-[300px] max-h-[500px] lg:max-h-[600px] aspect-square ${isScannerActive ? 'cursor-default' : 'cursor-zoom-in'}`}
+              className={`bg-white rounded-[2rem] flex items-center justify-center border border-slate-100 shadow-[0_15px_40px_rgb(0,0,0,0.03)] relative overflow-hidden group transition-all duration-700 hover:shadow-[0_20px_50px_rgba(8,102,189,0.05)] flex-1 min-h-[300px] max-h-[500px] lg:max-h-[600px] aspect-square ${isScannerActive ? 'cursor-default' : 'cursor-none'}`}
             >
                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,1)_0%,rgba(248,250,252,0)_100%)] transition-opacity duration-500 group-hover:opacity-40"></div>
 
@@ -360,15 +370,34 @@ export default function ProductDetail() {
                  onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/600x600/f8fafc/0866BD?text=${encodeURIComponent(product.category)}`; }}
                />
                
-               <div 
-                 className={`absolute inset-0 transition-all duration-500 bg-white ${isZooming && !isScannerActive ? 'opacity-100 z-20 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
-                 style={{ 
-                   backgroundImage: `url(${product.images[currentImageIndex]})`, 
-                   backgroundPosition: bgPosition, 
-                   backgroundSize: '200%', 
-                   backgroundRepeat: 'no-repeat',
-                 }}
-               />
+               {/* LUPA FLOTANTE TOP-TIER OPTIMIZADA */}
+               {isZooming && !isScannerActive && (
+                 <motion.div
+                   className="pointer-events-none absolute z-20 rounded-full border-2 border-white/40 shadow-[0_15px_35px_rgba(0,0,0,0.2),inset_0_0_20px_rgba(8,102,189,0.2)] overflow-hidden bg-white/10 backdrop-blur-sm"
+                   style={{
+                     x: smoothMouseX,
+                     y: smoothMouseY,
+                     translateX: "-50%",
+                     translateY: "-50%",
+                     width: 250,
+                     height: 250,
+                   }}
+                 >
+                   <motion.div 
+                     className="w-full h-full"
+                     style={{
+                       backgroundImage: `url(${product.images[currentImageIndex]})`,
+                       backgroundPosition: useMotionTemplate`${bgX}% ${bgY}%`, // Directo desde Framer (Sin Lag)
+                       backgroundSize: '250%', 
+                       backgroundRepeat: 'no-repeat',
+                     }}
+                   />
+                   <div className="absolute inset-0 flex items-center justify-center opacity-30 mix-blend-overlay">
+                     <div className="w-full h-[1px] bg-[#0866bd]"></div>
+                     <div className="absolute h-full w-[1px] bg-[#0866bd]"></div>
+                   </div>
+                 </motion.div>
+               )}
 
                <AnimatePresence>
                  {isScannerActive && (
@@ -377,7 +406,6 @@ export default function ProductDetail() {
                      className="absolute inset-0 z-30 bg-[#0866bd]/5 mix-blend-multiply pointer-events-none"
                    >
                      <div className="absolute inset-0 bg-[linear-gradient(rgba(8,102,189,0.3)_1px,transparent_1px),linear-gradient(90deg,rgba(8,102,189,0.3)_1px,transparent_1px)] bg-[size:40px_40px] opacity-30"></div>
-                     
                      <motion.div 
                        animate={{ top: ['0%', '100%', '0%'] }}
                        transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
@@ -385,7 +413,6 @@ export default function ProductDetail() {
                      >
                         <div className="absolute top-0 left-0 w-full h-10 bg-gradient-to-b from-transparent to-cyan-400/20 -translate-y-full"></div>
                      </motion.div>
-
                      <div className="absolute top-4 left-4 text-cyan-500/80 font-mono text-[8px] uppercase tracking-widest flex flex-col gap-1">
                        <span>SYS: ONLINE</span>
                        <span>SKU: {product.sku}</span>
@@ -403,9 +430,6 @@ export default function ProductDetail() {
                  >
                    <ScanSearch size={20} className={isScannerActive ? 'animate-pulse' : ''}/>
                  </button>
-                 <div className={`p-3 rounded-2xl backdrop-blur-md border shadow-sm transition-all duration-500 hidden sm:block ${isZooming && !isScannerActive ? 'bg-[#0866bd] text-white border-blue-400' : 'bg-white/80 text-slate-400 border-slate-100'}`}>
-                   <ZoomIn size={20} />
-                 </div>
                </div>
                
                {product.isUniversal && (
@@ -432,13 +456,36 @@ export default function ProductDetail() {
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Refacción OEM</span>
               </div>
 
-              <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8 max-w-xl">
+              <p className="text-slate-500 text-sm font-medium leading-relaxed mb-6 max-w-xl">
                  Configura tu motocicleta en el buscador principal para garantizar la compatibilidad exacta de esta pieza. Calidad premium y alta durabilidad.
               </p>
               
               <div ref={buySectionRef} className="mb-6 flex flex-col items-start bg-gradient-to-br from-white to-slate-50 p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 shadow-[0_15px_40px_rgba(0,0,0,0.03)] relative overflow-hidden group hover:border-blue-100/50 transition-colors duration-500">
                 <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-white to-transparent opacity-60 pointer-events-none transform skew-x-12 translate-x-10 group-hover:translate-x-20 transition-transform duration-1000"></div>
                 
+                {/* === NUEVO: MÓDULO FOMO Y URGENCIA DE STOCK === */}
+                <AnimatePresence mode="wait">
+                  {product.stock > 0 && product.stock <= 10 && (
+                     <motion.div 
+                        initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                        className={`w-full mb-6 p-4 rounded-2xl flex items-center gap-4 relative overflow-hidden border ${product.stock <= 3 ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'}`}
+                     >
+                        <div className={`absolute top-0 left-0 w-1 h-full ${product.stock <= 3 ? 'bg-red-500 animate-pulse' : 'bg-orange-400'}`}></div>
+                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm shrink-0">
+                           {product.stock <= 3 ? <Flame className="text-red-500" size={20} /> : <Clock className="text-orange-500" size={20} />}
+                        </div>
+                        <div>
+                           <p className={`font-black text-[10px] uppercase tracking-widest ${product.stock <= 3 ? 'text-red-600' : 'text-orange-600'}`}>
+                             {product.stock <= 3 ? '¡Alta Demanda!' : 'Stock Limitado'}
+                           </p>
+                           <p className={`text-xs font-bold mt-0.5 ${product.stock <= 3 ? 'text-red-500' : 'text-orange-500'}`}>
+                              Solo quedan <span className={`font-black text-sm px-1 ${product.stock <= 3 ? 'text-red-600' : 'text-orange-600'}`}>{product.stock}</span> piezas en mostrador
+                           </p>
+                        </div>
+                     </motion.div>
+                  )}
+                </AnimatePresence>
+
                 <AnimatePresence mode="wait">
                   <motion.div 
                     key={addedAnimation ? 'added' : 'price'}
@@ -479,16 +526,14 @@ export default function ProductDetail() {
                   >
                     <div className="absolute top-0 left-[-100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/60 to-transparent skew-x-[-25deg] group-hover:left-[200%] transition-all duration-1000 ease-in-out z-0"></div>
                     <span className="relative z-10 flex items-center gap-3">
-                      {product.stock === 0 ? 'AGOTADO' : <><ShoppingCart size={20} className="group-hover:animate-bounce" /> Añadir al Carrito</>}
+                      {product.stock === 0 ? 'AGOTADO' : <><ShoppingCart size={20} className="group-hover:animate-bounce" /> Comprar Ahora</>}
                     </span>
                   </motion.button>
                 </div>
               </div>
 
-              {/* === LOGÍSTICA DE SUCURSAL Y TRUST BADGES === */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10 pb-10 border-b border-slate-100">
                  
-                 {/* Estimador de Recolección */}
                  <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex items-start gap-3 hover:border-emerald-100 transition-colors duration-300">
                    <div className="bg-emerald-50 text-emerald-600 p-2 rounded-xl shrink-0"><Store size={18}/></div>
                    <div>
@@ -498,7 +543,6 @@ export default function ProductDetail() {
                    </div>
                  </div>
 
-                 {/* Trust Badge */}
                  <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex items-start gap-3 hover:border-blue-100 transition-colors duration-300">
                    <div className="bg-blue-50 text-[#0866bd] p-2 rounded-xl shrink-0"><RefreshCcw size={18}/></div>
                    <div>
@@ -517,7 +561,7 @@ export default function ProductDetail() {
                      <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${product.stock > 10 ? 'bg-emerald-500' : product.stock > 0 ? 'bg-yellow-500' : 'bg-red-500'}`}></span>
                    </div>
                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mt-0.5">
-                     {product.stock > 10 ? 'Stock Disponible' : product.stock > 0 ? `¡Solo ${product.stock} piezas!` : 'Agotado'}
+                     {product.stock > 10 ? 'Stock Disponible' : product.stock > 0 ? `¡Inventario Bajo!` : 'Agotado'}
                    </span>
                  </div>
                  
