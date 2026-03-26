@@ -34,6 +34,7 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const { scrollY } = useScroll();
 
+  // Activa el efecto cristal al hacer un poco de scroll
   useMotionValueEvent(scrollY, "change", (latest) => {
     setIsScrolled(latest > 20); 
   });
@@ -152,15 +153,16 @@ export default function Header() {
       <motion.header 
         className="sticky top-0 z-[100] w-full border-b border-white/10"
         animate={{ 
-          backgroundColor: isScrolled ? 'rgba(8, 102, 189, 0.92)' : 'rgba(8, 102, 189, 1)',
-          backdropFilter: isScrolled ? 'blur(20px)' : 'blur(0px)',
-          boxShadow: isScrolled ? '0 20px 40px -10px rgba(0,0,0,0.3)' : '0 4px 20px -5px rgba(0,0,0,0.1)'
+          // Cristal esmerilado mucho más puro y elegante al scrollear
+          backgroundColor: isScrolled ? 'rgba(8, 102, 189, 0.75)' : 'rgba(8, 102, 189, 1)',
+          backdropFilter: isScrolled ? 'blur(20px) saturate(150%)' : 'blur(0px) saturate(100%)',
+          boxShadow: isScrolled ? '0 10px 40px -10px rgba(0,0,0,0.3)' : '0 4px 15px -5px rgba(0,0,0,0.1)'
         }}
         transition={{ duration: 0.4 }}
       >
         <div className="max-w-[85rem] mx-auto relative z-20">
           
-          {/* TOP BAR */}
+          {/* === TOP BAR (LOGOS, BUSCADOR, BOTONES) === */}
           <motion.div 
             animate={{ paddingTop: isScrolled ? '0.75rem' : '1.25rem', paddingBottom: '0.75rem' }}
             transition={{ duration: 0.3 }}
@@ -196,7 +198,7 @@ export default function Header() {
                   scale: isSearchFocused ? 1.02 : 1
                 }}
                 transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                className="relative w-full flex items-center bg-white/95 backdrop-blur-md rounded-full p-1.5 border border-transparent transition-all z-20 group"
+                className="relative w-full flex items-center bg-white rounded-full p-1.5 border border-transparent transition-all z-20 group"
               >
                 <input 
                   type="text" 
@@ -284,7 +286,7 @@ export default function Header() {
 
             {/* ACCIONES Y REDES */}
             <div className="flex items-center gap-3 shrink-0 relative z-20">
-              <div className="hidden xl:flex items-center gap-3 mr-2 border-r border-blue-400/30 pr-5">
+              <div className="hidden xl:flex items-center gap-3 mr-2 border-r border-white/20 pr-5">
                 <motion.a whileHover={{ scale: 1.15, y: -2 }} whileTap={{ scale: 0.95 }} href="https://www.facebook.com/profile.php?id=61582551320267" target="_blank" rel="noreferrer" className="flex items-center justify-center w-9 h-9 rounded-full bg-white/10 text-white hover:bg-[#1877F2] transition-colors shadow-sm border border-white/10">
                   <Facebook size={16} />
                 </motion.a>
@@ -331,21 +333,15 @@ export default function Header() {
             </div>
           </motion.div>
 
-          {/* === FLOATING DOCK NAV (CLASE MUNDIAL) === */}
-          <div className="hidden lg:flex justify-center pb-4 pt-1 w-full relative z-20">
-            {/* 
-                Animación contextual: 
-                Si el usuario está buscando, la barra se encoge y se hace transparente 
-                para dar todo el protagonismo al buscador. 
-            */}
+          {/* === NAVEGACIÓN LIMPIA Y ELEGANTE (Sin fondo grueso) === */}
+          <div className="hidden lg:flex justify-center pb-2 pt-1 w-full relative z-20 border-t border-white/5">
             <motion.nav 
               animate={{ 
                 opacity: isSearchFocused ? 0.2 : 1,
-                scale: isSearchFocused ? 0.95 : 1,
-                y: isSearchFocused ? 10 : 0
+                y: isSearchFocused ? 5 : 0
               }}
               transition={{ duration: 0.3 }}
-              className="flex items-center gap-1 p-1.5 bg-white/10 backdrop-blur-2xl border border-white/20 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.15)]"
+              className="flex items-center gap-6"
               onMouseLeave={() => setHoveredNav(null)}
             >
               {NAV_LINKS.map((link) => {
@@ -355,28 +351,10 @@ export default function Header() {
                     key={link.path} 
                     to={link.path} 
                     onMouseEnter={() => setHoveredNav(link.path)} 
-                    className="relative px-8 py-2.5 rounded-full z-10 transition-colors flex items-center"
+                    className="relative py-3 px-2 z-10 transition-colors flex items-center group/nav"
                   >
-                    {/* Imán Físico Activo (Blanco Sólido) */}
-                    {isActive && (
-                      <motion.div 
-                        layoutId="dock-active-pill" 
-                        className="absolute inset-0 bg-white rounded-full shadow-[0_2px_10px_rgba(0,0,0,0.1)]" 
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      />
-                    )}
-                    
-                    {/* Imán Físico Hover (Translúcido) */}
-                    {hoveredNav === link.path && !isActive && (
-                      <motion.div 
-                        layoutId="dock-hover-pill" 
-                        className="absolute inset-0 bg-white/20 rounded-full" 
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      />
-                    )}
-                    
-                    {/* Texto Dinámico */}
-                    <span className={`relative z-10 font-black text-[11px] uppercase tracking-[0.2em] flex items-center transition-colors duration-300 ${isActive ? 'text-[#0866bd]' : 'text-white hover:text-yellow-300'}`}>
+                    {/* Texto del Enlace */}
+                    <span className={`relative z-10 font-black text-[11px] uppercase tracking-[0.2em] flex items-center transition-colors duration-300 ${isActive ? 'text-white' : 'text-blue-100 hover:text-white'}`}>
                       {link.name}
                       {link.isVIP && (
                         <span className={`ml-2.5 flex items-center gap-1 text-[9px] font-black px-2 py-[2px] rounded-md shadow-sm transition-colors duration-300 ${isActive ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-900' : 'bg-white/20 text-yellow-300'}`}>
@@ -384,6 +362,18 @@ export default function Header() {
                         </span>
                       )}
                     </span>
+
+                    {/* === INDICADOR MAGNÉTICO INFERIOR (ESTILO APPLE/VERCEL) === */}
+                    {(isActive || hoveredNav === link.path) && (
+                      <motion.div 
+                        layoutId="nav-underline" 
+                        className={`absolute bottom-0 left-0 right-0 h-[3px] rounded-t-full shadow-[0_-2px_10px_rgba(250,204,21,0.5)] ${isActive ? 'bg-yellow-400' : 'bg-white/50'}`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      />
+                    )}
                   </Link>
                 );
               })}
