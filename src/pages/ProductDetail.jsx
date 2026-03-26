@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { doc, getDoc, collection, getDocs, limit, query, addDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
 import { 
   ShieldCheck, Loader2, AlertCircle, Check, Star, StarHalf, Shield, Share2, Store, X, Search, CheckCircle, UserCircle2, Send, Zap, ShoppingCart, MessageCircle, ChevronRight, Package
 } from 'lucide-react';
@@ -14,6 +14,28 @@ const NAV_TABS = [
   { id: 'compatibility', label: 'Compatibilidad', icon: Shield },
   { id: 'reviews', label: 'Comunidad', icon: MessageCircle }
 ];
+
+// --- COMPONENTE DE NOTIFICACIÓN ELEGANTE ---
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: -50, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -20, scale: 0.9 }}
+      className={`fixed top-6 left-1/2 -translate-x-1/2 z-[300] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-md border ${
+        type === 'success' ? 'bg-emerald-500/90 border-emerald-400 text-white' : 'bg-red-500/90 border-red-400 text-white'
+      }`}
+    >
+      {type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+      <span className="text-xs font-bold uppercase tracking-widest">{message}</span>
+    </motion.div>
+  );
+};
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -28,12 +50,45 @@ export default function ProductDetail() {
   const [activeTab, setActiveTab] = useState('desc');
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   
-  const [showModal, setShowModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(''); // Para el modal de compatibilidad
-  const [tabSearchTerm, setTabSearchTerm] = useState(''); // Para el nuevo buscador de la pestaña
+  const [tabSearchTerm, setTabSearchTerm] = useState('');
   
-  const [zoomPosition, setZoomPosition] = useState('50% 50%');
+  // --- NUEVA LÓGICA DE LUPA TOP-TIER ---
   const [isZooming, setIsZooming] = useState(false);
+  const imageContainerRef = useRef(null);
+  
+  // Usamos framer-motion para movimiento suave
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  
+  // Añadimos física (spring) para que la lupa se sienta natural
+  const springConfig = { damping: 30, stiffness: 400, mass: 0.5 };
+  const smoothMouseX = useSpring(mouseX, springConfig);
+  const smoothMouseY = useSpring(mouseY, springConfig);
+
+  const [bgPosition, setBgPosition] = useState('50% 50%');
+
+  const handleMouseMove = (e) => {
+    if (!imageContainerRef.current) return;
+    
+    const { left, top, width, height } = imageContainerRef.current.getBoundingClientRect();
+    
+    // Posición exacta del mouse relativa al contenedor
+    const x = e.clientX - left;
+    const y = e.clientY - top;
+    
+    mouseX.set(x);
+    mouseY.set(y);
+
+    // Porcentaje para mover el fondo dentro de la lupa
+    const percentX = (x / width) * 100;
+    const percentY = (y / height) * 100;
+    setBgPosition(`${percentX}% ${percentY}%`);
+  };
+
+  const handleMouseEnter = () => setIsZooming(true);
+  const handleMouseLeave = () => setIsZooming(false);
+  // ------------------------------------
+
   const [addedAnimation, setAddedAnimation] = useState(false);
   const [shareText, setShareText] = useState('Compartir');
 
@@ -42,6 +97,8 @@ export default function ProductDetail() {
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [newReview, setNewReview] = useState({ name: '', rating: 5, comment: '' });
+  
+  const [toast, setToast] = useState(null);
 
   const dateOptions = { day: 'numeric', month: 'short', year: 'numeric' };
 
@@ -58,7 +115,7 @@ export default function ProductDetail() {
 
           setProduct({
             id: docSnap.id,
-          sku: data.sku || data.Codigo || data.id || docSnap.id.slice(0, 8).toUpperCase(),
+            sku: data.sku || data.Codigo || data.id || docSnap.id.slice(0, 8).toUpperCase(),
             name: data.name || data.Nombre,
             category: data.subCat || data.cat || data.Categoria || "Refacción",
             price: data.promoPrice || data.price || data.Precio || 0,
@@ -121,13 +178,6 @@ export default function ProductDetail() {
     setTimeout(() => setAddedAnimation(false), 2000);
   };
 
-  const handleMouseMove = (e) => {
-    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - left) / width) * 100;
-    const y = ((e.clientY - top) / height) * 100;
-    setZoomPosition(`${Math.max(0, Math.min(100, x))}% ${Math.max(0, Math.min(100, y))}%`);
-  };
-
   const handleShare = async () => {
     try {
       if (navigator.share && /mobile|android|iphone/i.test(navigator.userAgent)) {
@@ -143,36 +193,43 @@ export default function ProductDetail() {
   const handleSubmitReview = async (e) => {
     e.preventDefault();
     if(!newReview.name || !newReview.comment) return;
+    
     setIsSubmittingReview(true);
     try {
-      const reviewData = { name: newReview.name, rating: newReview.rating, comment: newReview.comment, createdAt: new Date().toISOString(), verified: true };
+      const reviewData = { 
+        name: newReview.name, 
+        rating: newReview.rating, 
+        comment: newReview.comment, 
+        createdAt: new Date().toISOString(), 
+        verified: true 
+      };
+      
       const docRef = await addDoc(collection(db, `productos/${id}/reseñas`), reviewData);
       const updatedReviews = [{ id: docRef.id, ...reviewData }, ...reviews];
+      
       setReviews(updatedReviews);
       setAverageRating(updatedReviews.reduce((acc, curr) => acc + curr.rating, 0) / updatedReviews.length);
       setShowReviewForm(false);
       setNewReview({ name: '', rating: 5, comment: '' });
-    } catch (error) { alert("Hubo un error al enviar tu reseña. Intenta de nuevo."); }
+      setToast({ message: "¡Reseña publicada con éxito!", type: 'success' });
+      
+    } catch (error) { 
+      console.error("Error guardando reseña:", error);
+      setToast({ message: "Error al publicar. Revisa tu conexión.", type: 'error' });
+    }
     setIsSubmittingReview(false);
   };
 
   const renderStars = (rating) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
-      if (i <= rating) stars.push(<Star key={i} size={14} fill="currentColor" className="text-[#ffc107] drop-shadow-[0_0_2px_rgba(255,193,7,0.5)]" />);
-      else if (i - 0.5 <= rating) stars.push(<StarHalf key={i} size={14} fill="currentColor" className="text-[#ffc107] drop-shadow-[0_0_2px_rgba(255,193,7,0.5)]" />);
-      else stars.push(<Star key={i} size={14} className="text-slate-200" />);
+      if (i <= rating) stars.push(<Star key={i} size={16} fill="currentColor" className="text-[#ffc107] drop-shadow-[0_0_3px_rgba(255,193,7,0.6)]" />);
+      else if (i - 0.5 <= rating) stars.push(<StarHalf key={i} size={16} fill="currentColor" className="text-[#ffc107] drop-shadow-[0_0_3px_rgba(255,193,7,0.6)]" />);
+      else stars.push(<Star key={i} size={16} className="text-slate-200" />);
     }
     return stars;
   };
 
-  // Filtro para el modal
-  const filteredCompatibility = product?.compatibility.filter(c => {
-    const searchString = typeof c === 'object' ? `${c.marca} ${c.modelo} ${c.cilindraje}`.toLowerCase() : c.toLowerCase();
-    return searchString.includes(searchTerm.toLowerCase());
-  }) || [];
-
-  // NUEVO: Filtro en vivo para la pestaña de compatibilidad
   const tabFilteredCompatibility = product?.compatibility.filter(c => {
     const searchString = typeof c === 'object' ? `${c.marca} ${c.modelo} ${c.cilindraje}`.toLowerCase() : c.toLowerCase();
     return searchString.includes(tabSearchTerm.toLowerCase());
@@ -180,19 +237,19 @@ export default function ProductDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center text-slate-400 bg-[#f8fafc]">
+      <div className="min-h-screen flex flex-col items-center justify-center text-slate-400 bg-[#0f172a]">
         <Loader2 className="animate-spin mb-6 text-[#0866bd]" size={48} />
-        <p className="font-light tracking-[0.3em] uppercase text-[10px] animate-pulse">Sincronizando tecnología...</p>
+        <p className="font-bold tracking-[0.3em] uppercase text-[10px] animate-pulse text-blue-200">Sincronizando tecnología...</p>
       </div>
     );
   }
 
   if (!product) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center text-slate-400 bg-[#f8fafc]">
-        <AlertCircle size={40} className="text-red-400 mb-6" />
-        <h2 className="text-xl font-light text-slate-800 uppercase tracking-widest mb-4">Pieza no encontrada</h2>
-        <button onClick={() => navigate('/catalogo')} className="text-[#0866bd] underline uppercase font-medium text-[10px] tracking-widest hover:text-blue-800 transition-colors">Volver al catálogo</button>
+      <div className="min-h-screen flex flex-col items-center justify-center text-slate-400 bg-[#f8fafc]">
+        <AlertCircle size={56} className="text-red-400 mb-6 drop-shadow-md" />
+        <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight mb-4">Pieza no encontrada</h2>
+        <button onClick={() => navigate('/catalogo')} className="text-[#0866bd] underline uppercase font-bold text-xs tracking-widest hover:text-blue-800 transition-colors">Volver al catálogo</button>
       </div>
     );
   }
@@ -202,8 +259,11 @@ export default function ProductDetail() {
   return (
     <div className="bg-[#f8fafc] min-h-screen selection:bg-yellow-400 selection:text-slate-900 pb-20 overflow-x-hidden relative">
       
-      {/* FONDO blueprint sutil e interactivo */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(8,102,189,0.01)_1.5px,transparent_1.5px),linear-gradient(90deg,rgba(8,102,189,0.01)_1.5px,transparent_1.5px)] bg-[size:30px_30px] opacity-10 pointer-events-none"></div>
+      <AnimatePresence>
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      </AnimatePresence>
+
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(8,102,189,0.01)_1.5px,transparent_1.5px),linear-gradient(90deg,rgba(8,102,189,0.01)_1.5px,transparent_1.5px)] bg-[size:30px_30px] opacity-20 pointer-events-none"></div>
 
       <div className="max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16 relative z-10">
         
@@ -212,7 +272,7 @@ export default function ProductDetail() {
           {/* === COLUMNA IZQUIERDA: GALERÍA Y LUPA LÁSER === */}
           <div className="w-full lg:w-[55%] flex flex-col sm:flex-row gap-6">
             
-            {/* Miniaturas Laterales */}
+            {/* Miniaturas */}
             {product.images.length > 1 && (
               <motion.div 
                 initial={{ opacity: 0, x: -20 }}
@@ -225,7 +285,7 @@ export default function ProductDetail() {
                     whileHover={{ scale: 1.05, y: -2 }}
                     whileTap={{ scale: 0.95 }}
                     key={idx} onClick={() => setCurrentImageIndex(idx)}
-                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl border flex-shrink-0 overflow-hidden transition-all duration-500 p-2.5 bg-white relative shadow-sm ${currentImageIndex === idx ? 'border-yellow-300 shadow-[0_5px_15px_rgba(250,204,21,0.2)]' : 'border-slate-100 opacity-60 hover:opacity-100 hover:border-slate-300'}`}
+                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl border flex-shrink-0 overflow-hidden transition-all duration-500 p-2.5 bg-white relative shadow-sm ${currentImageIndex === idx ? 'border-yellow-400 shadow-[0_5px_15px_rgba(250,204,21,0.3)] ring-2 ring-yellow-400/20' : 'border-slate-100 opacity-60 hover:opacity-100 hover:border-slate-300'}`}
                   >
                     <img src={img} alt={`thumb-${idx}`} className="w-full h-full object-contain mix-blend-multiply rounded-lg"/>
                   </motion.button>
@@ -233,15 +293,16 @@ export default function ProductDetail() {
               </motion.div>
             )}
 
-            {/* Imagen Principal */}
+            {/* IMAGEN PRINCIPAL Y LUPA TOP-TIER */}
             <motion.div 
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, type: "spring" }}
-              className="bg-white rounded-[2rem] flex items-center justify-center border border-slate-100 shadow-[0_15px_40px_rgb(0,0,0,0.03)] relative overflow-hidden cursor-crosshair group transition-all duration-700 hover:shadow-[0_20px_50px_rgba(8,102,189,0.05)] hover:border-blue-50/50 flex-1 min-h-[300px] max-h-[500px] lg:max-h-[600px] aspect-square"
+              ref={imageContainerRef}
               onMouseMove={handleMouseMove}
-              onMouseEnter={() => setIsZooming(true)}
-              onMouseLeave={() => setIsZooming(false)}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              className="bg-white rounded-[2rem] flex items-center justify-center border border-slate-100 shadow-[0_15px_40px_rgb(0,0,0,0.03)] relative overflow-hidden cursor-crosshair group transition-all duration-700 hover:shadow-[0_20px_50px_rgba(8,102,189,0.05)] hover:border-blue-100 flex-1 min-h-[300px] max-h-[500px] lg:max-h-[600px] aspect-square"
             >
                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,1)_0%,rgba(248,250,252,0)_100%)] transition-opacity duration-500 group-hover:opacity-40"></div>
 
@@ -254,27 +315,49 @@ export default function ProductDetail() {
                    transition={{ duration: 0.3 }}
                    src={product.images[currentImageIndex]} 
                    alt={cleanName} 
-                   className={`relative z-10 w-auto h-auto max-w-full max-h-full mix-blend-multiply transition-opacity duration-300 ease-out object-contain p-10 sm:p-14 ${isZooming ? 'opacity-0' : 'opacity-100 drop-shadow-xl group-hover:drop-shadow-3xl'}`} 
+                   className="relative z-10 w-auto h-auto max-w-full max-h-full mix-blend-multiply transition-opacity duration-300 ease-out object-contain p-10 sm:p-14 drop-shadow-xl group-hover:drop-shadow-3xl" 
                    onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/600x600/f8fafc/0866BD?text=${encodeURIComponent(product.category)}`; }}
                  />
                </AnimatePresence>
                
-               <div 
-                className={`absolute inset-0 transition-opacity duration-300 rounded-[2rem] border-4 border-[#0866bd]/20 shadow-[inset_0_0_50px_rgba(0,0,0,0.1)] ${isZooming ? 'opacity-100 z-20 shadow-inner' : 'opacity-0 pointer-events-none'}`}
-                style={{ 
-                  backgroundImage: `url(${product.images[currentImageIndex]})`, 
-                  backgroundPosition: zoomPosition, 
-                  backgroundSize: '160%', 
-                  backgroundRepeat: 'no-repeat', 
-                  backgroundColor: '#ffffff' 
-                }}
-               >
-                 <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-transparent via-[#0866bd] to-transparent shadow-[0_0_15px_rgba(8,102,189,1)] opacity-70" style={{ top: `calc(${zoomPosition.split(' ')[1]} - 1px)` }}></div>
-                 <div className="absolute top-0 left-0 h-full w-[3px] bg-gradient-to-b from-transparent via-[#0866bd] to-transparent shadow-[0_0_15px_rgba(8,102,189,1)] opacity-70" style={{ left: `calc(${zoomPosition.split(' ')[0]} - 1px)` }}></div>
-               </div>
+               {/* === LA NUEVA LUPA FLOTANTE (GLASSMORPHISM) === */}
+               {isZooming && (
+                 <motion.div
+                   className="pointer-events-none absolute z-20 rounded-full border-2 border-white/40 shadow-[0_15px_35px_rgba(0,0,0,0.2),inset_0_0_20px_rgba(8,102,189,0.2)] overflow-hidden bg-white/10 backdrop-blur-sm"
+                   style={{
+                     x: smoothMouseX,
+                     y: smoothMouseY,
+                     // Centramos el círculo en el cursor
+                     translateX: "-50%",
+                     translateY: "-50%",
+                     // Tamaño de la lupa
+                     width: 250,
+                     height: 250,
+                   }}
+                 >
+                   {/* Capa con la imagen aumentada */}
+                   <div 
+                     className="w-full h-full"
+                     style={{
+                       backgroundImage: `url(${product.images[currentImageIndex]})`,
+                       backgroundPosition: bgPosition,
+                       // Qué tanto aumento queremos (ej. 250% = 2.5x zoom)
+                       backgroundSize: '250%', 
+                       backgroundRepeat: 'no-repeat',
+                     }}
+                   />
+                   
+                   {/* Retícula sutil tipo visor (Crosshair) */}
+                   <div className="absolute inset-0 flex items-center justify-center opacity-30 mix-blend-overlay">
+                     <div className="w-full h-[1px] bg-[#0866bd]"></div>
+                     <div className="absolute h-full w-[1px] bg-[#0866bd]"></div>
+                   </div>
+                 </motion.div>
+               )}
+               {/* ============================================== */}
                
                {product.isUniversal && (
-                 <div className="absolute top-5 left-5 bg-gradient-to-r from-emerald-400 to-emerald-600 text-white text-[9px] font-black px-4 py-2 rounded-xl uppercase tracking-[0.2em] shadow-[0_10px_20px_rgba(16,185,129,0.3)] flex items-center gap-2 z-30 backdrop-blur-md border border-white/10">
+                 <div className="absolute top-5 left-5 bg-gradient-to-r from-emerald-400 to-emerald-600 text-white text-[9px] font-black px-4 py-2 rounded-xl uppercase tracking-[0.2em] shadow-[0_10px_20px_rgba(16,185,129,0.3)] flex items-center gap-2 z-30 backdrop-blur-md border border-white/20">
                    <Zap size={12} className="animate-pulse" /> Plug & Play
                  </div>
                )}
@@ -289,18 +372,18 @@ export default function ProductDetail() {
                 <span className="text-[10px] font-black text-[#0866bd] uppercase tracking-[0.25em] bg-blue-50/80 backdrop-blur-sm px-5 py-2 rounded-full border border-blue-100/50 shadow-sm">
                   {product.category}
                 </span>
-                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-[0.2em]">SKU: {product.sku}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">SKU: {product.sku}</p>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 uppercase tracking-tighter mb-5 leading-[1.15] drop-shadow-sm">
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 uppercase tracking-tighter mb-5 leading-[1.1] drop-shadow-sm">
                 {cleanName}
               </h1>
 
-              <p className="text-slate-500 text-sm font-light leading-relaxed mb-8 max-w-xl">
+              <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8 max-w-xl">
                  Configura tu motocicleta en el buscador principal para garantizar la compatibilidad exacta de esta pieza. Calidad premium Moto Partes El Jefe.
               </p>
               
-              <div className="mb-10 flex flex-col items-start bg-gradient-to-br from-white to-slate-50 p-6 sm:p-8 rounded-[2rem] border border-slate-100 shadow-[0_15px_30px_rgba(0,0,0,0.02)] relative overflow-hidden group hover:border-blue-100/50 transition-colors duration-500">
+              <div className="mb-10 flex flex-col items-start bg-gradient-to-br from-white to-slate-50 p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 shadow-[0_15px_40px_rgba(0,0,0,0.03)] relative overflow-hidden group hover:border-blue-100/50 transition-colors duration-500">
                 <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-white to-transparent opacity-60 pointer-events-none transform skew-x-12 translate-x-10 group-hover:translate-x-20 transition-transform duration-1000"></div>
                 
                 <AnimatePresence mode="wait">
@@ -309,21 +392,21 @@ export default function ProductDetail() {
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 1.05 }}
-                    className="flex flex-col items-baseline gap-4 mb-4 relative z-10"
+                    className="flex flex-col items-baseline gap-4 mb-5 relative z-10"
                   >
                     {addedAnimation ? (
-                      <div className="flex items-center gap-3 bg-emerald-50 text-emerald-600 px-6 py-4 rounded-xl border border-emerald-100 shadow-sm">
+                      <div className="flex items-center gap-3 bg-emerald-50 text-emerald-600 px-6 py-4 rounded-2xl border border-emerald-100 shadow-sm">
                          <CheckCircle size={24} />
                          <span className="text-sm font-black uppercase tracking-widest mt-0.5">¡Pieza agregada!</span>
                       </div>
                     ) : (
                       <div className="flex items-baseline gap-4">
-                         <span className="text-4xl sm:text-5xl font-black text-[#0866bd] tracking-tighter drop-shadow-md">
-                           ${product.price.toLocaleString('es-MX')}
+                         <span className="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-[#0866bd] to-blue-700 tracking-tighter drop-shadow-sm">
+                           {formatMXN(product.price)}
                          </span>
                          {product.originalPrice && (
-                           <span className="text-xl text-slate-400 line-through font-medium decoration-1 decoration-red-400/50 tracking-tight">
-                             ${product.originalPrice.toLocaleString('es-MX')}
+                           <span className="text-xl text-slate-400 line-through font-bold tracking-tight decoration-red-400/50 decoration-2">
+                             {formatMXN(product.originalPrice)}
                            </span>
                          )}
                       </div>
@@ -343,20 +426,20 @@ export default function ProductDetail() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 mb-10 pb-10 border-b border-slate-100">
-                <div className="flex items-center bg-white border-2 border-slate-100 rounded-2xl h-14 sm:w-36 overflow-hidden focus-within:border-[#0866bd] focus-within:shadow-[0_0_15px_rgba(8,102,189,0.15)] transition-all duration-300 shadow-sm shrink-0">
-                   <button onClick={() => setQty(Math.max(1, qty - 1))} disabled={product.stock === 0} className="w-12 h-full text-slate-300 hover:bg-slate-50 hover:text-[#0866bd] transition-colors text-xl font-medium disabled:opacity-50 active:bg-slate-100">-</button>
+                <div className="flex items-center bg-white border-2 border-slate-100 rounded-[1.5rem] h-16 sm:w-36 overflow-hidden focus-within:border-[#0866bd] focus-within:shadow-[0_0_15px_rgba(8,102,189,0.15)] transition-all duration-300 shadow-sm shrink-0">
+                   <button onClick={() => setQty(Math.max(1, qty - 1))} disabled={product.stock === 0} className="w-12 h-full text-slate-400 hover:bg-slate-50 hover:text-[#0866bd] transition-colors text-xl font-bold disabled:opacity-50">-</button>
                    <span className="flex-1 text-center font-black text-slate-800 text-lg">{qty}</span>
-                   <button onClick={() => setQty(Math.min(product.stock, qty + 1))} disabled={product.stock === 0} className="w-12 h-full text-slate-300 hover:bg-slate-50 hover:text-[#0866bd] transition-colors text-xl font-medium disabled:opacity-50 active:bg-slate-100">+</button>
+                   <button onClick={() => setQty(Math.min(product.stock, qty + 1))} disabled={product.stock === 0} className="w-12 h-full text-slate-400 hover:bg-slate-50 hover:text-[#0866bd] transition-colors text-xl font-bold disabled:opacity-50">+</button>
                 </div>
                 
                 <motion.button 
                   whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }}
                   onClick={handleAdd} disabled={product.stock === 0}
-                  className="relative flex-1 overflow-hidden bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:via-yellow-300 hover:to-amber-400 text-slate-900 font-black uppercase tracking-[0.25em] rounded-2xl shadow-[0_15px_30px_rgba(250,204,21,0.3)] hover:shadow-[0_20px_40px_rgba(250,204,21,0.4)] transition-all duration-500 text-[11px] flex items-center justify-center h-14 group disabled:opacity-50 disabled:grayscale"
+                  className="relative flex-1 overflow-hidden bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-900 font-black uppercase tracking-[0.25em] rounded-[1.5rem] shadow-[0_15px_30px_rgba(250,204,21,0.3)] hover:shadow-[0_20px_40px_rgba(250,204,21,0.4)] transition-all duration-500 text-xs flex items-center justify-center h-16 group disabled:opacity-50 disabled:grayscale"
                 >
                   <div className="absolute top-0 left-[-100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/60 to-transparent skew-x-[-25deg] group-hover:left-[200%] transition-all duration-1000 ease-in-out z-0"></div>
                   <span className="relative z-10 flex items-center gap-3">
-                    {product.stock === 0 ? 'AGOTADO' : <><ShoppingCart size={18} className="group-hover:animate-bounce" /> Agregar Al Carrito</>}
+                    {product.stock === 0 ? 'AGOTADO' : <><ShoppingCart size={20} className="group-hover:animate-bounce" /> Agregar Al Carrito</>}
                   </span>
                 </motion.button>
               </div>
@@ -367,8 +450,8 @@ export default function ProductDetail() {
                      <ShieldCheck size={20} className="text-slate-300 group-hover:text-white transition-colors" />
                    </div>
                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover:text-slate-800 transition-colors">Garantía</span>
-                      <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider group-hover:text-slate-600 transition-colors">Precisión Exacta</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 group-hover:text-slate-800 transition-colors">Garantía</span>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider group-hover:text-slate-600 transition-colors">Precisión Exacta</span>
                    </div>
                  </motion.div>
                  
@@ -400,10 +483,10 @@ export default function ProductDetail() {
                 onClick={() => setActiveTab(tab.id)} 
                 className={`relative py-3.5 px-6 sm:px-9 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] rounded-full z-10 transition-colors duration-500 flex items-center gap-2.5 whitespace-nowrap ${activeTab === tab.id ? 'text-[#0866bd]' : 'text-slate-500 hover:text-slate-800'}`}
               >
-                <tab.icon size={14} className={`shrink-0 ${activeTab === tab.id ? 'opacity-100' : 'opacity-60'}`} />
+                <tab.icon size={16} strokeWidth={2.5} className={`shrink-0 ${activeTab === tab.id ? 'opacity-100' : 'opacity-50'}`} />
                 <span>{tab.label}</span>
                 {tab.id === 'reviews' && (
-                  <span className={`px-2 py-0.5 rounded-md text-[9px] transition-colors duration-500 ${activeTab === 'reviews' ? 'bg-blue-50 text-[#0866bd]' : 'bg-slate-300 text-slate-500'}`}>
+                  <span className={`px-2.5 py-1 rounded-md text-[9px] font-black transition-colors duration-500 shadow-sm ${activeTab === 'reviews' ? 'bg-blue-100 text-[#0866bd]' : 'bg-slate-300/50 text-slate-500'}`}>
                     {reviews.length}
                   </span>
                 )}
@@ -418,9 +501,9 @@ export default function ProductDetail() {
         {/* Contenido de Pestañas */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.8 }}
-          className="bg-white/90 backdrop-blur-3xl rounded-[3rem] p-6 sm:p-14 min-h-[300px] shadow-[0_20px_50px_rgb(0,0,0,0.02)] border border-white/70 relative -mt-16 pt-24"
+          className="bg-white/90 backdrop-blur-3xl rounded-[3rem] p-6 sm:p-14 min-h-[300px] shadow-[0_20px_50px_rgb(0,0,0,0.03)] border border-white/70 relative -mt-16 pt-24"
         >
-           <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-blue-100 rounded-full blur-[100px] pointer-events-none opacity-40"></div>
+           <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-blue-100/50 rounded-full blur-[100px] pointer-events-none opacity-40"></div>
            
            <AnimatePresence mode="wait">
              <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
@@ -434,81 +517,79 @@ export default function ProductDetail() {
                           key={idx}
                           initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: idx * 0.1 }}
                           whileHover={{ y: -5, backgroundColor: "#ffffff", borderColor: "#e2e8f0", boxShadow: "0 10px 25px rgba(0,0,0,0.05)" }}
-                          className="flex items-start gap-5 p-7 sm:p-8 bg-slate-50/50 rounded-[2rem] border border-transparent transition-all duration-300 group"
+                          className="flex items-start gap-5 p-7 sm:p-8 bg-slate-50/50 rounded-[2rem] border border-transparent transition-all duration-300 group shadow-inner"
                         >
-                          <div className="mt-0.5 bg-white p-3 rounded-2xl shadow-inner shrink-0 group-hover:scale-110 group-hover:bg-yellow-400 group-hover:shadow-[0_5px_15px_rgba(250,204,21,0.4)] transition-all duration-300 border border-slate-100 border-dashed">
-                            <Check size={18} className="text-[#0866bd] font-black group-hover:text-slate-900 transition-colors"/>
+                          <div className="mt-0.5 bg-white p-3 rounded-2xl shadow-sm shrink-0 group-hover:scale-110 group-hover:bg-yellow-400 group-hover:shadow-[0_10px_20px_rgba(250,204,21,0.4)] transition-all duration-300 border border-slate-100">
+                            <Check size={20} strokeWidth={2.5} className="text-[#0866bd] group-hover:text-slate-900 transition-colors"/>
                           </div>
-                          <p className="text-slate-600 text-sm font-medium leading-relaxed group-hover:text-slate-900 transition-colors mt-1">{feat}</p>
+                          <p className="text-slate-600 text-sm font-bold leading-relaxed group-hover:text-slate-900 transition-colors mt-1">{feat}</p>
                         </motion.div>
                      ))}
                    </div>
                  </div>
                )}
 
-               {/* === TAB 2: COMPATIBILIDAD (MEJORADA CON SCROLL Y BUSCADOR) === */}
+               {/* === TAB 2: COMPATIBILIDAD === */}
                {activeTab === 'compatibility' && (
                  <div className="max-w-4xl mx-auto">
                     {product.isUniversal ? (
-                      <div className="p-8 bg-slate-50/80 border border-slate-100 rounded-[2rem] flex flex-col md:flex-row items-center gap-8 shadow-inner">
-                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-emerald-500 shrink-0 border border-emerald-100 shadow-sm"><Check size={32} /></div>
-                        <div>
-                          <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight mb-2">Instalación Plug & Play</h4>
-                          <p className="text-sm text-slate-600 font-medium leading-relaxed max-w-xl">
-                            Refacción universal diseñada bajo estándares <strong className="text-slate-800 font-black">OEM Moto Partes El Jefe</strong> para adaptarse a la mayoría de motocicletas sin necesidad de modificaciones técnicas avanzadas.
+                      <div className="p-8 sm:p-12 bg-gradient-to-r from-emerald-50 to-white border border-emerald-100/50 rounded-[2rem] flex flex-col md:flex-row items-center gap-8 shadow-sm">
+                        <div className="w-20 h-20 bg-white rounded-[1.5rem] flex items-center justify-center text-emerald-500 shrink-0 shadow-[0_10px_20px_rgba(16,185,129,0.2)] border border-emerald-100"><Zap size={40} className="animate-pulse" /></div>
+                        <div className="text-center md:text-left">
+                          <h4 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">Instalación Plug & Play</h4>
+                          <p className="text-sm text-slate-600 font-medium leading-relaxed max-w-xl mx-auto md:mx-0">
+                            Refacción universal diseñada bajo estándares <strong className="text-emerald-700 font-black">OEM Moto Partes El Jefe</strong> para adaptarse a la mayoría de motocicletas sin necesidad de modificaciones técnicas avanzadas.
                           </p>
                         </div>
                       </div>
                     ) : product.compatibility.length > 0 ? (
                       
-                      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.03)] overflow-hidden flex flex-col relative">
-                        
+                      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-[0_15px_50px_rgba(0,0,0,0.03)] overflow-hidden flex flex-col relative">
                         {/* Buscador de Pestaña (Sticky) */}
-                        <div className="p-5 sm:p-6 border-b border-slate-100 bg-slate-50/80 backdrop-blur-md sticky top-0 z-10">
+                        <div className="p-6 sm:p-8 border-b border-slate-100 bg-slate-50/80 backdrop-blur-md sticky top-0 z-10">
                           <div className="relative group">
-                            <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#0866bd] transition-colors" />
+                            <Search size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#0866bd] transition-colors" />
                             <input 
                               type="text" 
                               placeholder="Filtra por marca, modelo o CC..." 
                               value={tabSearchTerm} 
                               onChange={(e) => setTabSearchTerm(e.target.value)} 
-                              className="w-full bg-white border-2 border-slate-100 rounded-2xl pl-14 pr-5 py-4 text-sm font-bold text-slate-800 focus:outline-none focus:border-[#0866bd] transition-all shadow-sm focus:shadow-md" 
+                              className="w-full bg-white border-2 border-slate-100 rounded-[1.5rem] pl-16 pr-6 py-5 text-sm font-bold text-slate-800 focus:outline-none focus:border-[#0866bd] transition-all shadow-sm focus:shadow-[0_10px_20px_rgba(8,102,189,0.1)] placeholder:font-medium placeholder:text-slate-300" 
                             />
                           </div>
                         </div>
 
                         {/* Contenedor con Scroll Interno Limitado */}
-                        <div className="max-h-[400px] overflow-y-auto custom-scrollbar p-5 sm:p-8 bg-slate-50/30">
+                        <div className="max-h-[450px] overflow-y-auto custom-scrollbar p-6 sm:p-10 bg-slate-50/30">
                            {tabFilteredCompatibility.length > 0 ? (
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                {tabFilteredCompatibility.map((c, i) => (
                                  <motion.div 
                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
                                    key={i} 
-                                   className="flex items-center justify-between p-5 rounded-2xl bg-white border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all duration-300 shadow-sm group relative overflow-hidden"
+                                   className="flex items-center justify-between p-6 rounded-2xl bg-white border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all duration-300 shadow-sm group relative overflow-hidden"
                                  >
-                                   <div className="absolute top-0 right-0 w-24 h-full bg-gradient-to-l from-blue-50 to-transparent group-hover:scale-x-110 transition-transform duration-700 opacity-60"></div>
+                                   <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-blue-50/80 to-transparent group-hover:scale-x-125 transition-transform duration-700 opacity-60"></div>
                                    <span className="font-black text-slate-800 text-sm uppercase tracking-tight relative z-10">{typeof c === 'object' ? `${c.marca} ${c.modelo}` : c}</span>
-                                   <span className="text-[10px] font-black text-[#0866bd] uppercase tracking-widest bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100/50 relative z-10">
+                                   <span className="text-[10px] font-black text-[#0866bd] uppercase tracking-widest bg-blue-50 px-4 py-2 rounded-xl border border-blue-100/50 relative z-10 shadow-inner">
                                      {typeof c === 'object' ? (c.años.length > 1 ? `${c.años[0]} - ${c.años[c.años.length-1]}` : c.años[0]) : 'Varios'}
                                    </span>
                                  </motion.div>
                                ))}
                              </div>
                            ) : (
-                             <div className="text-center py-16 flex flex-col items-center bg-white rounded-2xl border border-slate-100 border-dashed">
-                               <Search size={36} className="text-slate-200 mb-4" />
-                               <p className="text-slate-600 font-black text-base uppercase tracking-tight">Modelo no encontrado</p>
-                               <p className="text-slate-400 text-xs font-medium mt-2">Intenta escribir solo el cilindraje o la marca.</p>
+                             <div className="text-center py-20 flex flex-col items-center bg-white rounded-[2rem] border border-slate-100 border-dashed">
+                               <Search size={40} className="text-slate-200 mb-4" />
+                               <p className="text-slate-700 font-black text-lg uppercase tracking-tight">Modelo no encontrado</p>
+                               <p className="text-slate-400 text-sm font-medium mt-2 max-w-xs">Intenta escribir solo el cilindraje o la marca para ver opciones.</p>
                              </div>
                            )}
                         </div>
-                        {/* Gradiente sutil abajo para indicar que hay más scroll */}
-                        <div className="h-6 w-full bg-gradient-to-t from-slate-50/80 to-transparent absolute bottom-0 left-0 pointer-events-none"></div>
+                        <div className="h-10 w-full bg-gradient-to-t from-slate-50 to-transparent absolute bottom-0 left-0 pointer-events-none"></div>
                       </div>
                       
                     ) : (
-                      <div className="px-8 py-6 text-xs text-slate-400 font-medium italic text-center">Información de compatibilidad detallada no disponible.</div>
+                      <div className="px-8 py-10 bg-slate-50 rounded-[2rem] text-sm text-slate-500 font-medium text-center border border-slate-100">Información de compatibilidad detallada no disponible. Contacta soporte para confirmar si le queda a tu motocicleta.</div>
                     )}
                  </div>
                )}
@@ -517,46 +598,54 @@ export default function ProductDetail() {
                {activeTab === 'reviews' && (
                  <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-12 lg:gap-20">
                    
+                   {/* Resumen Izquierdo */}
                    <div className="w-full md:w-1/3 flex flex-col items-center text-center">
-                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-4">Calificación Global</h4>
-                     <p className="text-7xl sm:text-8xl font-black text-slate-900 mb-6 tracking-tighter drop-shadow-md">{averageRating > 0 ? averageRating.toFixed(1) : '0.0'}</p>
-                     <div className="flex justify-center mb-5 scale-125">{renderStars(averageRating)}</div>
+                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-4 bg-slate-50 px-4 py-1.5 rounded-full border border-slate-100">Calificación Global</h4>
+                     <p className="text-7xl sm:text-[6rem] font-black text-slate-900 mb-4 tracking-tighter drop-shadow-md leading-none">{averageRating > 0 ? averageRating.toFixed(1) : '0.0'}</p>
+                     <div className="flex justify-center mb-6 scale-125">{renderStars(averageRating)}</div>
                      <p className="text-[10px] text-slate-400 font-black mb-12 tracking-widest uppercase">
-                       {reviews.length === 0 ? 'Sin reseñas registradas' : `Basado en ${reviews.length} opiniones`}
+                       {reviews.length === 0 ? 'Sin reseñas registradas' : `Basado en ${reviews.length} opiniones de BIKERS`}
                      </p>
                      <motion.button 
-                       whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setShowReviewForm(true)}
-                       className="w-full bg-slate-900 hover:bg-black text-white font-black py-5 rounded-2xl transition-all duration-300 text-[10px] uppercase tracking-[0.25em] shadow-[0_15px_30px_rgba(0,0,0,0.15)] flex justify-center items-center gap-3 hover:-translate-y-1"
+                       whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }} 
+                       whileTap={{ scale: 0.95 }} 
+                       onClick={() => setShowReviewForm(true)}
+                       className="w-full bg-slate-900 hover:bg-black text-white font-black py-5 rounded-2xl transition-all duration-300 text-[10px] uppercase tracking-[0.25em] shadow-[0_15px_30px_rgba(0,0,0,0.15)] flex justify-center items-center gap-3 relative overflow-hidden group"
                      >
-                       <MessageCircle size={16}/> Escribir Mi Reseña
+                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-[-25deg] group-hover:translate-x-full transition-transform duration-1000"></div>
+                       <MessageCircle size={18} className="relative z-10"/> <span className="relative z-10 mt-0.5">Escribir Mi Reseña</span>
                      </motion.button>
                    </div>
                    
+                   {/* Lista de Reseñas */}
                    <div className="w-full md:w-2/3 md:border-l border-slate-100 md:pl-16">
                      {reviews.length === 0 ? (
-                       <div className="text-center py-16 bg-slate-50/50 rounded-[2.5rem] border border-slate-100 border-dashed">
-                         <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm"><MessageCircle size={32} className="text-slate-300" /></div>
-                         <p className="text-base font-black text-slate-800 uppercase tracking-tight mb-2">Aún no hay comentarios</p>
-                         <p className="text-xs text-slate-500 font-medium max-w-xs mx-auto">Sé el primero en compartir tu experiencia con esta refacción a la comunidad.</p>
+                       <div className="text-center py-20 bg-slate-50/50 rounded-[3rem] border border-slate-100 border-dashed">
+                         <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100"><MessageCircle size={40} className="text-slate-300" /></div>
+                         <p className="text-lg font-black text-slate-800 uppercase tracking-tight mb-2">Aún no hay comentarios</p>
+                         <p className="text-sm text-slate-500 font-medium max-w-sm mx-auto">Sé el primero en compartir tu experiencia de instalación y calidad con la comunidad.</p>
                        </div>
                      ) : (
-                       <div className="space-y-10">
+                       <div className="space-y-8">
                          {reviews.map((rev) => (
-                           <div key={rev.id} className="border-b border-slate-100 pb-10 group animate-fade-in">
-                             <div className="flex justify-between items-start mb-4 gap-4">
+                           <div key={rev.id} className="bg-white border border-slate-100 rounded-[2rem] p-8 shadow-[0_10px_30px_rgba(0,0,0,0.02)] hover:shadow-[0_15px_40px_rgba(8,102,189,0.05)] transition-all duration-300 group">
+                             <div className="flex justify-between items-start mb-6 gap-4">
                                <div className="flex items-center gap-5">
-                                 <div className="w-12 h-12 bg-gradient-to-br from-blue-50 to-blue-100 text-[#0866bd] font-black rounded-xl flex items-center justify-center text-lg uppercase shadow-inner border border-blue-100 group-hover:scale-110 group-hover:bg-[#0866bd] group-hover:text-white transition-all duration-300">
+                                 <div className="w-14 h-14 bg-gradient-to-br from-blue-50 to-white text-[#0866bd] font-black rounded-2xl flex items-center justify-center text-xl uppercase shadow-inner border border-blue-100 group-hover:scale-110 group-hover:bg-gradient-to-br group-hover:from-[#0866bd] group-hover:to-blue-700 group-hover:text-white transition-all duration-500">
                                    {rev.name.charAt(0)}
                                  </div>
                                  <div>
-                                   <p className="text-sm font-black text-slate-800 uppercase tracking-tight mb-1">{rev.name}</p>
-                                   {rev.verified && <p className="text-[9px] text-emerald-500 font-black uppercase tracking-widest flex items-center gap-1.5"><ShieldCheck size={12}/> Compra Verificada</p>}
+                                   <p className="text-base font-black text-slate-800 uppercase tracking-tight mb-1">{rev.name}</p>
+                                   {rev.verified && <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest flex items-center gap-1.5"><ShieldCheck size={14}/> Compra Verificada</p>}
                                  </div>
                                </div>
-                               <div className="flex gap-0.5 shrink-0">{renderStars(rev.rating)}</div>
+                               <div className="flex gap-1 shrink-0 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">{renderStars(rev.rating)}</div>
                              </div>
-                             <p className="text-slate-600 text-sm leading-relaxed mt-5 font-medium">{rev.comment}</p>
-                             <p className="text-[10px] text-slate-400 mt-5 font-black uppercase tracking-widest">{new Date(rev.createdAt).toLocaleDateString('es-MX', dateOptions)}</p>
+                             <p className="text-slate-600 text-sm leading-relaxed font-medium pl-[4.5rem] relative">
+                               <Quote size={24} className="absolute left-4 top-0 text-slate-100 -rotate-180" />
+                               {rev.comment}
+                             </p>
+                             <p className="text-[10px] text-slate-400 mt-6 pl-[4.5rem] font-black uppercase tracking-widest">{new Date(rev.createdAt).toLocaleDateString('es-MX', dateOptions)}</p>
                            </div>
                          ))}
                        </div>
@@ -574,54 +663,63 @@ export default function ProductDetail() {
       {/* === PRODUCTOS RECOMENDADOS === */}
       <div className="mt-32 max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="absolute top-0 right-0 w-80 h-80 bg-blue-100 rounded-full blur-[120px] pointer-events-none opacity-20"></div>
-        <ProductGrid products={relatedProducts} title={<span className="text-3xl font-black uppercase text-slate-900 tracking-tight">Recomendados <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-[#0866bd]">para ti</span></span>} isInteractiveCarrousel={true}/>
+        <ProductGrid products={relatedProducts} title={<span className="text-3xl sm:text-4xl font-black uppercase text-slate-900 tracking-tight">Recomendados <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0866bd] to-blue-600">para ti</span></span>} isInteractiveCarrousel={true}/>
       </div>
 
-      {/* === MODAL ESCRIBIR RESEÑA === */}
+      {/* === MODAL ESCRIBIR RESEÑA (Glassmorphism Premium) === */}
       <AnimatePresence>
         {showReviewForm && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !isSubmittingReview && setShowReviewForm(false)}></motion.div>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" onClick={() => !isSubmittingReview && setShowReviewForm(false)}></motion.div>
+            
             <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="relative bg-white rounded-[3rem] w-full max-w-md flex flex-col shadow-2xl overflow-hidden border border-slate-100"
+              initial={{ scale: 0.95, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 30 }}
+              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              className="relative bg-white rounded-[3rem] w-full max-w-lg flex flex-col shadow-[0_40px_80px_rgba(0,0,0,0.4)] overflow-hidden border border-white/20"
             >
-              <div className="px-10 py-8 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-[0.2em] flex items-center gap-3">
-                  <Star size={18} className="text-yellow-400 fill-current"/> Mi Opinión <span className="text-slate-400 font-medium">Biker</span>
+              {/* Header Modal */}
+              <div className="px-10 py-8 bg-gradient-to-br from-[#0866bd] to-blue-900 text-white flex justify-between items-center shrink-0 relative overflow-hidden">
+                <div className="absolute top-[-20%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+                <h3 className="text-xs font-black uppercase tracking-[0.25em] flex items-center gap-3 relative z-10">
+                  <div className="bg-yellow-400 text-slate-900 p-2 rounded-xl shadow-inner"><Star size={16} className="fill-current"/></div> Mi Opinión Biker
                 </h3>
-                <button onClick={() => !isSubmittingReview && setShowReviewForm(false)} className="text-slate-400 hover:text-red-500 bg-white p-2.5 rounded-full shadow-sm hover:bg-red-50 transition-colors"><X size={18} /></button>
+                <button onClick={() => !isSubmittingReview && setShowReviewForm(false)} className="text-blue-200 hover:text-white bg-white/10 p-2.5 rounded-full shadow-sm hover:bg-white/20 transition-all relative z-10"><X size={18} strokeWidth={2.5}/></button>
               </div>
               
-              <form onSubmit={handleSubmitReview} className="p-10 space-y-8 bg-white grow">
-                <div className="flex justify-center gap-3 bg-slate-50 p-6 rounded-[2rem] border border-slate-100 shadow-inner">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button key={star} type="button" onClick={() => setNewReview({...newReview, rating: star})} className="focus:outline-none transition-transform hover:scale-125 hover:-translate-y-1 active:scale-95 p-1 duration-300">
-                      <Star size={36} fill={star <= newReview.rating ? "#ffc107" : "transparent"} className={star <= newReview.rating ? "text-[#ffc107] drop-shadow-[0_0_10px_rgba(255,193,7,0.6)]" : "text-slate-200"} />
-                    </button>
-                  ))}
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-2">Tu Nombre (Público)</label>
-                  <div className="relative group">
-                    <UserCircle2 size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#0866bd] transition-colors" />
-                    <input type="text" required placeholder="Ej. Juan Pérez" value={newReview.name} onChange={(e) => setNewReview({...newReview, name: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl pl-14 pr-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:border-[#0866bd] transition-all shadow-sm focus:shadow-md focus:shadow-blue-500/10"/>
+              <form onSubmit={handleSubmitReview} className="p-10 space-y-8 bg-[#f8fafc] grow">
+                
+                {/* Estrellas Interactivas */}
+                <div className="flex flex-col items-center bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Selecciona tu calificación</p>
+                  <div className="flex justify-center gap-2 sm:gap-4">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button key={star} type="button" onClick={() => setNewReview({...newReview, rating: star})} className="focus:outline-none transition-transform hover:scale-125 hover:-translate-y-2 active:scale-90 p-2 duration-300">
+                        <Star size={40} fill={star <= newReview.rating ? "#ffc107" : "transparent"} strokeWidth={star <= newReview.rating ? 0 : 2} className={star <= newReview.rating ? "text-[#ffc107] drop-shadow-[0_10px_15px_rgba(255,193,7,0.6)]" : "text-slate-300"} />
+                      </button>
+                    ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-2">¿Qué te pareció la calidad?</label>
-                  <textarea required rows="4" placeholder="Escribe tu comentario aquí..." value={newReview.comment} onChange={(e) => setNewReview({...newReview, comment: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-6 text-sm font-medium text-slate-700 focus:outline-none focus:border-[#0866bd] transition-all shadow-sm resize-none leading-relaxed shadow-blue-500/10"></textarea>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-2">Tu Nombre (Público)</label>
+                  <div className="relative group">
+                    <UserCircle2 size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#0866bd] transition-colors" />
+                    <input type="text" required placeholder="Ej. Juan Pérez" value={newReview.name} onChange={(e) => setNewReview({...newReview, name: e.target.value})} className="w-full bg-white border-2 border-slate-100 rounded-[1.5rem] pl-16 pr-6 py-5 text-sm font-bold text-slate-700 focus:outline-none focus:border-[#0866bd] transition-all shadow-sm focus:shadow-[0_10px_20px_rgba(8,102,189,0.1)] placeholder:font-medium placeholder:text-slate-300"/>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-2">¿Qué te pareció la calidad?</label>
+                  <textarea required rows="4" placeholder="La pieza llegó en perfectas condiciones y..." value={newReview.comment} onChange={(e) => setNewReview({...newReview, comment: e.target.value})} className="w-full bg-white border-2 border-slate-100 rounded-[1.5rem] p-6 text-sm font-bold text-slate-700 focus:outline-none focus:border-[#0866bd] transition-all shadow-sm resize-none leading-relaxed focus:shadow-[0_10px_20px_rgba(8,102,189,0.1)] placeholder:font-medium placeholder:text-slate-300"></textarea>
                 </div>
 
                 <motion.button 
                   whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                   type="submit" disabled={isSubmittingReview} 
-                  className="w-full bg-slate-900 hover:bg-black text-white font-black px-8 py-5 rounded-2xl uppercase tracking-[0.25em] transition-all duration-300 text-xs flex items-center justify-center h-16 gap-3 disabled:opacity-70 disabled:cursor-not-allowed shadow-[0_15px_30px_rgba(0,0,0,0.15)] relative overflow-hidden group"
+                  className="w-full bg-slate-900 hover:bg-black text-white font-black px-8 py-5 rounded-[1.5rem] uppercase tracking-[0.25em] transition-all duration-300 text-[11px] flex items-center justify-center h-16 gap-3 disabled:opacity-50 disabled:grayscale shadow-[0_15px_30px_rgba(0,0,0,0.2)] relative overflow-hidden group"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-[-25deg] group-hover:translate-x-full transition-transform duration-1000 ease-in-out"></div>
-                  {isSubmittingReview ? <><Loader2 size={20} className="animate-spin relative z-10" /> <span className="relative z-10 text-[11px]">Publicando...</span></> : <><Send size={20} className="relative z-10" /> <span className="relative z-10text-[11px]">Publicar Mi Reseña</span></>}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-25deg] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out"></div>
+                  {isSubmittingReview ? <><Loader2 size={20} className="animate-spin relative z-10" /> <span className="relative z-10 mt-0.5">Publicando...</span></> : <><Send size={20} className="relative z-10 group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" /> <span className="relative z-10 mt-0.5">Publicar Mi Reseña</span></>}
                 </motion.button>
               </form>
             </motion.div>
