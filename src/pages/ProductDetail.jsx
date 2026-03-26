@@ -4,7 +4,8 @@ import { doc, getDoc, collection, getDocs, limit, query, addDoc } from 'firebase
 import { db } from '../firebase/config';
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
 import { 
-  ShieldCheck, Loader2, AlertCircle, Check, Star, StarHalf, Shield, Share2, Store, X, Search, CheckCircle, UserCircle2, Send, Zap, ShoppingCart, MessageCircle, ChevronRight, Package
+  ShieldCheck, Loader2, AlertCircle, Check, Star, StarHalf, Shield, Share2, Store, X, Search, CheckCircle, UserCircle2, Send, Zap, ShoppingCart, MessageCircle, ChevronRight, Package, ZoomIn,
+  ScanSearch, CreditCard, RefreshCcw, MapPin, Clock
 } from 'lucide-react';
 import { CartContext } from '../context/CartContext';
 import ProductGrid from '../components/products/ProductGrid';
@@ -15,7 +16,6 @@ const NAV_TABS = [
   { id: 'reviews', label: 'Comunidad', icon: MessageCircle }
 ];
 
-// --- COMPONENTE DE NOTIFICACIÓN ELEGANTE ---
 const Toast = ({ message, type, onClose }) => {
   useEffect(() => {
     const timer = setTimeout(onClose, 3000);
@@ -41,7 +41,9 @@ export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useContext(CartContext);
-  const infoRef = useRef(null);
+  
+  const buySectionRef = useRef(null);
+  const [showStickyBar, setShowStickyBar] = useState(false);
   
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
@@ -52,37 +54,39 @@ export default function ProductDetail() {
   
   const [tabSearchTerm, setTabSearchTerm] = useState('');
   
-  // --- NUEVA LÓGICA DE LUPA TOP-TIER ---
+  // --- LÓGICA INNER ZOOM Y HOLO-SCANNER ---
   const [isZooming, setIsZooming] = useState(false);
+  const [isScannerActive, setIsScannerActive] = useState(false); 
+  const [bgPosition, setBgPosition] = useState('50% 50%');
   const imageContainerRef = useRef(null);
-  
+
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
-  
   const springConfig = { damping: 30, stiffness: 400, mass: 0.5 };
   const smoothMouseX = useSpring(mouseX, springConfig);
   const smoothMouseY = useSpring(mouseY, springConfig);
 
-  const [bgPosition, setBgPosition] = useState('50% 50%');
-
   const handleMouseMove = (e) => {
-    if (!imageContainerRef.current) return;
+    if (!imageContainerRef.current || isScannerActive) return; 
     const { left, top, width, height } = imageContainerRef.current.getBoundingClientRect();
     
     const x = e.clientX - left;
     const y = e.clientY - top;
     
-    mouseX.set(x);
-    mouseY.set(y);
+    const xPercent = (x / width) * 100;
+    const yPercent = (y / height) * 100;
+    
+    const safeX = Math.max(0, Math.min(100, xPercent));
+    const safeY = Math.max(0, Math.min(100, yPercent));
 
-    const percentX = (x / width) * 100;
-    const percentY = (y / height) * 100;
-    setBgPosition(`${percentX}% ${percentY}%`);
+    setBgPosition(`${safeX}% ${safeY}%`);
   };
 
-  const handleMouseEnter = () => setIsZooming(true);
-  const handleMouseLeave = () => setIsZooming(false);
-  // ------------------------------------
+  const handleMouseEnter = () => { if(!isScannerActive) setIsZooming(true); };
+  const handleMouseLeave = () => {
+    setIsZooming(false);
+    setBgPosition('50% 50%');
+  };
 
   const [addedAnimation, setAddedAnimation] = useState(false);
   const [shareText, setShareText] = useState('Compartir');
@@ -97,11 +101,20 @@ export default function ProductDetail() {
 
   const dateOptions = { day: 'numeric', month: 'short', year: 'numeric' };
 
-  // === SOLUCIÓN: FUNCIÓN FALTANTE PARA FORMATEAR MONEDA ===
   const formatMXN = (amount) => {
     return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount || 0);
   };
-  // ========================================================
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (buySectionRef.current) {
+        const { bottom } = buySectionRef.current.getBoundingClientRect();
+        setShowStickyBar(bottom < 0);
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     const fetchProductAndReviews = async () => {
@@ -173,7 +186,7 @@ export default function ProductDetail() {
 
   const handleAdd = () => {
     if (!product || product.stock === 0) return;
-    for(let i=0; i<qty; i++){ addToCart(product); }
+    addToCart(product, qty);
     setQty(1);
     setAddedAnimation(true);
     setTimeout(() => setAddedAnimation(false), 2000);
@@ -264,16 +277,49 @@ export default function ProductDetail() {
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {showStickyBar && product.stock > 0 && (
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="fixed bottom-4 sm:bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-[100] sm:w-[400px] bg-white/90 backdrop-blur-xl border border-slate-200/50 p-4 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.1)] flex items-center justify-between gap-4"
+          >
+            <div className="flex flex-col overflow-hidden hidden sm:flex">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Añadir al Carrito</span>
+              <span className="text-sm font-black text-slate-800 truncate">{cleanName}</span>
+            </div>
+            <div className="flex items-center gap-4 w-full sm:w-auto">
+              <span className="text-xl font-black text-[#0866bd]">{formatMXN(product.price)}</span>
+              <motion.button 
+                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                onClick={handleAdd}
+                className="flex-1 sm:flex-none bg-gradient-to-r from-[#0866bd] to-blue-600 text-white font-black uppercase tracking-[0.1em] rounded-xl px-6 py-3 shadow-[0_10px_20px_rgba(8,102,189,0.3)] text-[10px] flex items-center justify-center gap-2 group"
+              >
+                <ShoppingCart size={16} className="group-hover:animate-bounce" /> Añadir
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="absolute inset-0 bg-[linear-gradient(rgba(8,102,189,0.01)_1.5px,transparent_1.5px),linear-gradient(90deg,rgba(8,102,189,0.01)_1.5px,transparent_1.5px)] bg-[size:30px_30px] opacity-20 pointer-events-none"></div>
 
       <div className="max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16 relative z-10">
         
+        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-8">
+          <Link to="/" className="hover:text-[#0866bd] transition-colors">Inicio</Link>
+          <ChevronRight size={12} />
+          <Link to="/catalogo" className="hover:text-[#0866bd] transition-colors">Catálogo</Link>
+          <ChevronRight size={12} />
+          <span className="text-[#0866bd] truncate max-w-[150px] sm:max-w-none">{product.category}</span>
+        </div>
+
         <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
           
-          {/* === COLUMNA IZQUIERDA: GALERÍA Y LUPA LÁSER === */}
-          <div className="w-full lg:w-[55%] flex flex-col sm:flex-row gap-6">
+          <div className="w-full lg:w-[55%] flex flex-col sm:flex-row gap-6 relative">
             
-            {/* Miniaturas */}
             {product.images.length > 1 && (
               <motion.div 
                 initial={{ opacity: 0, x: -20 }}
@@ -286,7 +332,7 @@ export default function ProductDetail() {
                     whileHover={{ scale: 1.05, y: -2 }}
                     whileTap={{ scale: 0.95 }}
                     key={idx} onClick={() => setCurrentImageIndex(idx)}
-                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl border flex-shrink-0 overflow-hidden transition-all duration-500 p-2.5 bg-white relative shadow-sm ${currentImageIndex === idx ? 'border-yellow-400 shadow-[0_5px_15px_rgba(250,204,21,0.3)] ring-2 ring-yellow-400/20' : 'border-slate-100 opacity-60 hover:opacity-100 hover:border-slate-300'}`}
+                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl border flex-shrink-0 overflow-hidden transition-all duration-500 p-2.5 bg-white relative shadow-sm ${currentImageIndex === idx ? 'border-[#0866bd] shadow-[0_5px_15px_rgba(8,102,189,0.2)] ring-2 ring-[#0866bd]/20' : 'border-slate-100 opacity-60 hover:opacity-100 hover:border-slate-300'}`}
                   >
                     <img src={img} alt={`thumb-${idx}`} className="w-full h-full object-contain mix-blend-multiply rounded-lg"/>
                   </motion.button>
@@ -294,7 +340,6 @@ export default function ProductDetail() {
               </motion.div>
             )}
 
-            {/* IMAGEN PRINCIPAL Y LUPA TOP-TIER */}
             <motion.div 
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -303,95 +348,107 @@ export default function ProductDetail() {
               onMouseMove={handleMouseMove}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
-              className="bg-white rounded-[2rem] flex items-center justify-center border border-slate-100 shadow-[0_15px_40px_rgb(0,0,0,0.03)] relative overflow-hidden cursor-crosshair group transition-all duration-700 hover:shadow-[0_20px_50px_rgba(8,102,189,0.05)] hover:border-blue-100 flex-1 min-h-[300px] max-h-[500px] lg:max-h-[600px] aspect-square"
+              className={`bg-white rounded-[2rem] flex items-center justify-center border border-slate-100 shadow-[0_15px_40px_rgb(0,0,0,0.03)] relative overflow-hidden group transition-all duration-700 hover:shadow-[0_20px_50px_rgba(8,102,189,0.05)] flex-1 min-h-[300px] max-h-[500px] lg:max-h-[600px] aspect-square ${isScannerActive ? 'cursor-default' : 'cursor-zoom-in'}`}
             >
                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,1)_0%,rgba(248,250,252,0)_100%)] transition-opacity duration-500 group-hover:opacity-40"></div>
 
-               <AnimatePresence mode="wait">
-                 <motion.img 
-                   key={currentImageIndex}
-                   initial={{ opacity: 0, scale: 0.98 }}
-                   animate={{ opacity: 1, scale: 1 }}
-                   exit={{ opacity: 0, scale: 1.02 }}
-                   transition={{ duration: 0.3 }}
-                   src={product.images[currentImageIndex]} 
-                   alt={cleanName} 
-                   className="relative z-10 w-auto h-auto max-w-full max-h-full mix-blend-multiply transition-opacity duration-300 ease-out object-contain p-10 sm:p-14 drop-shadow-xl group-hover:drop-shadow-3xl" 
-                   onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/600x600/f8fafc/0866BD?text=${encodeURIComponent(product.category)}`; }}
-                 />
-               </AnimatePresence>
+               <motion.img 
+                 key={`normal-${currentImageIndex}`}
+                 src={product.images[currentImageIndex]} 
+                 alt={cleanName} 
+                 className={`relative z-10 w-auto h-auto max-w-full max-h-full mix-blend-multiply transition-all duration-300 ease-out object-contain p-10 sm:p-14 drop-shadow-xl ${isZooming && !isScannerActive ? 'opacity-0' : 'opacity-100 group-hover:drop-shadow-2xl'}`} 
+                 onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/600x600/f8fafc/0866BD?text=${encodeURIComponent(product.category)}`; }}
+               />
                
-               {/* === LA NUEVA LUPA FLOTANTE (GLASSMORPHISM) === */}
-               {isZooming && (
-                 <motion.div
-                   className="pointer-events-none absolute z-20 rounded-full border-2 border-white/40 shadow-[0_15px_35px_rgba(0,0,0,0.2),inset_0_0_20px_rgba(8,102,189,0.2)] overflow-hidden bg-white/10 backdrop-blur-sm"
-                   style={{
-                     x: smoothMouseX,
-                     y: smoothMouseY,
-                     translateX: "-50%",
-                     translateY: "-50%",
-                     width: 250,
-                     height: 250,
-                   }}
+               <div 
+                 className={`absolute inset-0 transition-all duration-500 bg-white ${isZooming && !isScannerActive ? 'opacity-100 z-20 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
+                 style={{ 
+                   backgroundImage: `url(${product.images[currentImageIndex]})`, 
+                   backgroundPosition: bgPosition, 
+                   backgroundSize: '200%', 
+                   backgroundRepeat: 'no-repeat',
+                 }}
+               />
+
+               <AnimatePresence>
+                 {isScannerActive && (
+                   <motion.div 
+                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                     className="absolute inset-0 z-30 bg-[#0866bd]/5 mix-blend-multiply pointer-events-none"
+                   >
+                     <div className="absolute inset-0 bg-[linear-gradient(rgba(8,102,189,0.3)_1px,transparent_1px),linear-gradient(90deg,rgba(8,102,189,0.3)_1px,transparent_1px)] bg-[size:40px_40px] opacity-30"></div>
+                     
+                     <motion.div 
+                       animate={{ top: ['0%', '100%', '0%'] }}
+                       transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                       className="absolute left-0 w-full h-[2px] bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,1)]"
+                     >
+                        <div className="absolute top-0 left-0 w-full h-10 bg-gradient-to-b from-transparent to-cyan-400/20 -translate-y-full"></div>
+                     </motion.div>
+
+                     <div className="absolute top-4 left-4 text-cyan-500/80 font-mono text-[8px] uppercase tracking-widest flex flex-col gap-1">
+                       <span>SYS: ONLINE</span>
+                       <span>SKU: {product.sku}</span>
+                       <span>TGT: MOTO-PART</span>
+                     </div>
+                   </motion.div>
+                 )}
+               </AnimatePresence>
+
+               <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-40">
+                 <button 
+                   onClick={() => setIsScannerActive(!isScannerActive)}
+                   className={`p-3 rounded-2xl backdrop-blur-md transition-all duration-300 shadow-sm border ${isScannerActive ? 'bg-[#0866bd] text-white border-blue-400' : 'bg-white/80 text-slate-400 border-slate-100 hover:text-[#0866bd]'}`}
+                   title="Modo Escáner"
                  >
-                   <div 
-                     className="w-full h-full"
-                     style={{
-                       backgroundImage: `url(${product.images[currentImageIndex]})`,
-                       backgroundPosition: bgPosition,
-                       backgroundSize: '250%', 
-                       backgroundRepeat: 'no-repeat',
-                     }}
-                   />
-                   <div className="absolute inset-0 flex items-center justify-center opacity-30 mix-blend-overlay">
-                     <div className="w-full h-[1px] bg-[#0866bd]"></div>
-                     <div className="absolute h-full w-[1px] bg-[#0866bd]"></div>
-                   </div>
-                 </motion.div>
-               )}
+                   <ScanSearch size={20} className={isScannerActive ? 'animate-pulse' : ''}/>
+                 </button>
+                 <div className={`p-3 rounded-2xl backdrop-blur-md border shadow-sm transition-all duration-500 hidden sm:block ${isZooming && !isScannerActive ? 'bg-[#0866bd] text-white border-blue-400' : 'bg-white/80 text-slate-400 border-slate-100'}`}>
+                   <ZoomIn size={20} />
+                 </div>
+               </div>
                
                {product.isUniversal && (
-                 <div className="absolute top-5 left-5 bg-gradient-to-r from-emerald-400 to-emerald-600 text-white text-[9px] font-black px-4 py-2 rounded-xl uppercase tracking-[0.2em] shadow-[0_10px_20px_rgba(16,185,129,0.3)] flex items-center gap-2 z-30 backdrop-blur-md border border-white/20">
+                 <div className="absolute top-5 right-5 sm:left-5 sm:right-auto bg-gradient-to-r from-emerald-400 to-emerald-600 text-white text-[9px] font-black px-4 py-2 rounded-xl uppercase tracking-[0.2em] shadow-[0_10px_20px_rgba(16,185,129,0.3)] flex items-center gap-2 z-30 backdrop-blur-md border border-white/20">
                    <Zap size={12} className="animate-pulse" /> Plug & Play
                  </div>
                )}
             </motion.div>
           </div>
 
-          {/* === COLUMNA DERECHA: INFO Y COMPRA STICKY === */}
-          <div className="w-full lg:w-[45%] flex flex-col pt-2 lg:sticky lg:top-32 h-fit" ref={infoRef}>
+          <div className="w-full lg:w-[45%] flex flex-col pt-2 h-fit relative">
             
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
-              <div className="flex items-center justify-between mb-5 gap-4">
-                <span className="text-[10px] font-black text-[#0866bd] uppercase tracking-[0.25em] bg-blue-50/80 backdrop-blur-sm px-5 py-2 rounded-full border border-blue-100/50 shadow-sm">
-                  {product.category}
-                </span>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">SKU: {product.sku}</p>
-              </div>
-
-              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 uppercase tracking-tighter mb-5 leading-[1.1] drop-shadow-sm">
+              
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 uppercase tracking-tighter mb-4 leading-[1.1] drop-shadow-sm mt-2">
                 {cleanName}
               </h1>
 
+              <div className="flex flex-wrap items-center gap-3 mb-6">
+                <div className="flex items-center gap-1 bg-yellow-100/50 text-yellow-700 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border border-yellow-200/50">
+                  <Star size={12} className="fill-current" /> {averageRating > 0 ? averageRating.toFixed(1) : 'Nuevo'}
+                </div>
+                <span className="text-slate-300">|</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Refacción OEM</span>
+              </div>
+
               <p className="text-slate-500 text-sm font-medium leading-relaxed mb-8 max-w-xl">
-                 Configura tu motocicleta en el buscador principal para garantizar la compatibilidad exacta de esta pieza. Calidad premium Moto Partes El Jefe.
+                 Configura tu motocicleta en el buscador principal para garantizar la compatibilidad exacta de esta pieza. Calidad premium y alta durabilidad.
               </p>
               
-              <div className="mb-10 flex flex-col items-start bg-gradient-to-br from-white to-slate-50 p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 shadow-[0_15px_40px_rgba(0,0,0,0.03)] relative overflow-hidden group hover:border-blue-100/50 transition-colors duration-500">
+              <div ref={buySectionRef} className="mb-6 flex flex-col items-start bg-gradient-to-br from-white to-slate-50 p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 shadow-[0_15px_40px_rgba(0,0,0,0.03)] relative overflow-hidden group hover:border-blue-100/50 transition-colors duration-500">
                 <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-white to-transparent opacity-60 pointer-events-none transform skew-x-12 translate-x-10 group-hover:translate-x-20 transition-transform duration-1000"></div>
                 
                 <AnimatePresence mode="wait">
                   <motion.div 
                     key={addedAnimation ? 'added' : 'price'}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 1.05 }}
-                    className="flex flex-col items-baseline gap-4 mb-5 relative z-10"
+                    initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }}
+                    className="flex flex-col items-baseline gap-4 mb-6 relative z-10 w-full"
                   >
                     {addedAnimation ? (
-                      <div className="flex items-center gap-3 bg-emerald-50 text-emerald-600 px-6 py-4 rounded-2xl border border-emerald-100 shadow-sm">
+                      <div className="flex items-center gap-3 bg-emerald-50 text-emerald-600 px-6 py-4 rounded-2xl border border-emerald-100 shadow-sm w-full">
                          <CheckCircle size={24} />
-                         <span className="text-sm font-black uppercase tracking-widest mt-0.5">¡Pieza agregada!</span>
+                         <span className="text-sm font-black uppercase tracking-widest mt-0.5">¡Agregado al Garage!</span>
                       </div>
                     ) : (
                       <div className="flex items-baseline gap-4">
@@ -408,55 +465,64 @@ export default function ProductDetail() {
                   </motion.div>
                 </AnimatePresence>
                 
-                <div className="flex items-center gap-3 px-5 py-2.5 rounded-full border border-slate-200/70 shadow-sm bg-white relative z-10 transition-colors duration-500 group-hover:border-blue-100/50">
+                <div className="flex flex-col sm:flex-row gap-4 w-full relative z-10">
+                  <div className="flex items-center bg-white border border-slate-200 rounded-[1.5rem] h-16 sm:w-36 overflow-hidden focus-within:border-[#0866bd] transition-all shadow-sm shrink-0">
+                     <button onClick={() => setQty(Math.max(1, qty - 1))} disabled={product.stock === 0} className="w-12 h-full text-slate-400 hover:bg-slate-50 hover:text-[#0866bd] transition-colors text-xl font-bold disabled:opacity-50">-</button>
+                     <span className="flex-1 text-center font-black text-slate-800 text-lg">{qty}</span>
+                     <button onClick={() => setQty(Math.min(product.stock, qty + 1))} disabled={product.stock === 0} className="w-12 h-full text-slate-400 hover:bg-slate-50 hover:text-[#0866bd] transition-colors text-xl font-bold disabled:opacity-50">+</button>
+                  </div>
+                  
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }}
+                    onClick={handleAdd} disabled={product.stock === 0}
+                    className="relative flex-1 overflow-hidden bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-900 font-black uppercase tracking-[0.25em] rounded-[1.5rem] shadow-[0_15px_30px_rgba(250,204,21,0.3)] hover:shadow-[0_20px_40px_rgba(250,204,21,0.4)] transition-all duration-500 text-xs flex items-center justify-center h-16 group disabled:opacity-50 disabled:grayscale"
+                  >
+                    <div className="absolute top-0 left-[-100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/60 to-transparent skew-x-[-25deg] group-hover:left-[200%] transition-all duration-1000 ease-in-out z-0"></div>
+                    <span className="relative z-10 flex items-center gap-3">
+                      {product.stock === 0 ? 'AGOTADO' : <><ShoppingCart size={20} className="group-hover:animate-bounce" /> Añadir al Carrito</>}
+                    </span>
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* === LOGÍSTICA DE SUCURSAL Y TRUST BADGES === */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10 pb-10 border-b border-slate-100">
+                 
+                 {/* Estimador de Recolección */}
+                 <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex items-start gap-3 hover:border-emerald-100 transition-colors duration-300">
+                   <div className="bg-emerald-50 text-emerald-600 p-2 rounded-xl shrink-0"><Store size={18}/></div>
+                   <div>
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Disponibilidad</p>
+                     <p className="text-xs font-bold text-slate-800">Recolección Inmediata</p>
+                     <p className="text-[9px] text-slate-500 mt-1 flex items-center gap-1"><MapPin size={10}/> Sucursal Tonalá</p>
+                   </div>
+                 </div>
+
+                 {/* Trust Badge */}
+                 <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex items-start gap-3 hover:border-blue-100 transition-colors duration-300">
+                   <div className="bg-blue-50 text-[#0866bd] p-2 rounded-xl shrink-0"><RefreshCcw size={18}/></div>
+                   <div>
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Garantía Exacta</p>
+                     <p className="text-xs font-bold text-slate-800">Cambios sin costo</p>
+                     <p className="text-[9px] text-slate-500 mt-1 flex items-center gap-1"><Clock size={10}/> Atención en mostrador</p>
+                   </div>
+                 </div>
+
+              </div>
+
+              <div className="flex justify-between items-center gap-4">
+                 <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-slate-50 border border-slate-100">
                    <div className="relative flex h-2.5 w-2.5">
                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${product.stock > 10 ? 'bg-emerald-400' : product.stock > 0 ? 'bg-yellow-400' : 'bg-red-400'}`}></span>
                      <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${product.stock > 10 ? 'bg-emerald-500' : product.stock > 0 ? 'bg-yellow-500' : 'bg-red-500'}`}></span>
                    </div>
-                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-700 mt-0.5">
-                     {product.stock > 10 ? 'Disponible en Almacén' : product.stock > 0 ? `¡Últimas ${product.stock} piezas!` : 'Agotado Temporalmente'}
+                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mt-0.5">
+                     {product.stock > 10 ? 'Stock Disponible' : product.stock > 0 ? `¡Solo ${product.stock} piezas!` : 'Agotado'}
                    </span>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-4 mb-10 pb-10 border-b border-slate-100">
-                <div className="flex items-center bg-white border-2 border-slate-100 rounded-[1.5rem] h-16 sm:w-36 overflow-hidden focus-within:border-[#0866bd] focus-within:shadow-[0_0_15px_rgba(8,102,189,0.15)] transition-all duration-300 shadow-sm shrink-0">
-                   <button onClick={() => setQty(Math.max(1, qty - 1))} disabled={product.stock === 0} className="w-12 h-full text-slate-400 hover:bg-slate-50 hover:text-[#0866bd] transition-colors text-xl font-bold disabled:opacity-50">-</button>
-                   <span className="flex-1 text-center font-black text-slate-800 text-lg">{qty}</span>
-                   <button onClick={() => setQty(Math.min(product.stock, qty + 1))} disabled={product.stock === 0} className="w-12 h-full text-slate-400 hover:bg-slate-50 hover:text-[#0866bd] transition-colors text-xl font-bold disabled:opacity-50">+</button>
-                </div>
-                
-                <motion.button 
-                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }}
-                  onClick={handleAdd} disabled={product.stock === 0}
-                  className="relative flex-1 overflow-hidden bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-900 font-black uppercase tracking-[0.25em] rounded-[1.5rem] shadow-[0_15px_30px_rgba(250,204,21,0.3)] hover:shadow-[0_20px_40px_rgba(250,204,21,0.4)] transition-all duration-500 text-xs flex items-center justify-center h-16 group disabled:opacity-50 disabled:grayscale"
-                >
-                  <div className="absolute top-0 left-[-100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/60 to-transparent skew-x-[-25deg] group-hover:left-[200%] transition-all duration-1000 ease-in-out z-0"></div>
-                  <span className="relative z-10 flex items-center gap-3">
-                    {product.stock === 0 ? 'AGOTADO' : <><ShoppingCart size={20} className="group-hover:animate-bounce" /> Agregar Al Carrito</>}
-                  </span>
-                </motion.button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                 <motion.div whileHover={{ scale: 1.05, y: -2 }} className="flex items-center gap-4 bg-white/50 backdrop-blur-sm px-5 py-4 rounded-2xl border border-slate-100 shadow-sm hover:border-blue-100 transition-colors group cursor-default">
-                   <div className="bg-white border border-slate-100 shadow-sm p-3 rounded-xl group-hover:bg-[#0866bd] transition-colors duration-300 flex items-center justify-center shrink-0">
-                     <ShieldCheck size={20} className="text-slate-300 group-hover:text-white transition-colors" />
-                   </div>
-                   <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 group-hover:text-slate-800 transition-colors">Garantía</span>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider group-hover:text-slate-600 transition-colors">Precisión Exacta</span>
-                   </div>
-                 </motion.div>
+                 </div>
                  
-                 <motion.button whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }} onClick={handleShare} className="flex items-center justify-end gap-3 text-[10px] font-black text-slate-400 hover:text-[#0866bd] transition-colors uppercase tracking-[0.2em] bg-white shadow-sm hover:shadow-md px-5 py-4 rounded-2xl border border-slate-100 hover:border-slate-200">
-                   <AnimatePresence mode="wait">
-                     {shareText === '¡Copiado!' ? (
-                       <motion.div key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={{ duration: 0.2 }}><CheckCircle size={18} className="text-emerald-500" /></motion.div>
-                     ) : (
-                       <motion.div key="share" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={{ duration: 0.2 }}><Share2 size={18} className="text-[#0866bd]"/></motion.div>
-                     )}
-                   </AnimatePresence>
+                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleShare} className="flex items-center gap-2 text-[10px] font-black text-slate-400 hover:text-[#0866bd] transition-colors uppercase tracking-[0.2em] bg-white shadow-sm px-4 py-2 rounded-full border border-slate-100">
+                   <Share2 size={14} className={shareText === '¡Copiado!' ? 'text-emerald-500' : ''}/>
                    <span className={`mt-0.5 ${shareText === '¡Copiado!' ? 'text-emerald-500' : ''}`}>{shareText}</span>
                  </motion.button>
               </div>
@@ -466,7 +532,6 @@ export default function ProductDetail() {
         </div>
       </div>
 
-      {/* === PESTAÑAS MODERNAS === */}
       <div className="max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 mt-24 scroll-mt-24 relative z-10">
         
         <div className="flex justify-center mb-8 relative z-10">
@@ -492,7 +557,6 @@ export default function ProductDetail() {
           </div>
         </div>
         
-        {/* Contenido de Pestañas */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.8 }}
           className="bg-white/90 backdrop-blur-3xl rounded-[3rem] p-6 sm:p-14 min-h-[300px] shadow-[0_20px_50px_rgb(0,0,0,0.03)] border border-white/70 relative -mt-16 pt-24"
@@ -502,7 +566,6 @@ export default function ProductDetail() {
            <AnimatePresence mode="wait">
              <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
                
-               {/* === TAB 1: INGENIERÍA === */}
                {activeTab === 'desc' && (
                  <div className="max-w-4xl mx-auto">
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-7">
@@ -523,7 +586,6 @@ export default function ProductDetail() {
                  </div>
                )}
 
-               {/* === TAB 2: COMPATIBILIDAD === */}
                {activeTab === 'compatibility' && (
                  <div className="max-w-4xl mx-auto">
                     {product.isUniversal ? (
@@ -586,11 +648,9 @@ export default function ProductDetail() {
                  </div>
                )}
 
-               {/* === TAB 3: RESEÑAS === */}
                {activeTab === 'reviews' && (
                  <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-12 lg:gap-20">
                    
-                   {/* Resumen Izquierdo */}
                    <div className="w-full md:w-1/3 flex flex-col items-center text-center">
                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-4 bg-slate-50 px-4 py-1.5 rounded-full border border-slate-100">Calificación Global</h4>
                      <p className="text-7xl sm:text-[6rem] font-black text-slate-900 mb-4 tracking-tighter drop-shadow-md leading-none">{averageRating > 0 ? averageRating.toFixed(1) : '0.0'}</p>
@@ -609,7 +669,6 @@ export default function ProductDetail() {
                      </motion.button>
                    </div>
                    
-                   {/* Lista de Reseñas */}
                    <div className="w-full md:w-2/3 md:border-l border-slate-100 md:pl-16">
                      {reviews.length === 0 ? (
                        <div className="text-center py-20 bg-slate-50/50 rounded-[3rem] border border-slate-100 border-dashed">
@@ -652,13 +711,11 @@ export default function ProductDetail() {
         </motion.div>
       </div>
 
-      {/* === PRODUCTOS RECOMENDADOS === */}
       <div className="mt-32 max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="absolute top-0 right-0 w-80 h-80 bg-blue-100 rounded-full blur-[120px] pointer-events-none opacity-20"></div>
         <ProductGrid products={relatedProducts} title={<span className="text-3xl sm:text-4xl font-black uppercase text-slate-900 tracking-tight">Recomendados <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0866bd] to-blue-600">para ti</span></span>} isInteractiveCarrousel={true}/>
       </div>
 
-      {/* === MODAL ESCRIBIR RESEÑA (Glassmorphism Premium) === */}
       <AnimatePresence>
         {showReviewForm && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
