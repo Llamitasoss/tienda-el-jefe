@@ -28,10 +28,11 @@ export default function ProductCard({ product }) {
       whileHover={{ y: -8 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
       onClick={() => navigate(`/producto/${product.id}`)}
-     className="w-full bg-white rounded-[1.5rem] sm:rounded-[2rem] p-3 sm:p-4 border border-slate-100 shadow-[0_8px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_40px_rgba(8,102,189,0.08)] hover:border-blue-100 transition-colors duration-300 group flex flex-col h-full cursor-pointer relative overflow-hidden"
+      className="w-full bg-white rounded-[1.5rem] sm:rounded-[2rem] p-3 sm:p-4 border border-slate-100 shadow-[0_8px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_40px_rgba(8,102,189,0.08)] hover:border-blue-100 transition-colors duration-300 group flex flex-col h-full cursor-pointer relative overflow-hidden"
     >
       {/* === CONTENEDOR DE IMAGEN === */}
-      <div className="relative aspect-square bg-gradient-to-tr from-slate-50 to-slate-100/50 group-hover:from-blue-50/50 group-hover:to-blue-100/30 rounded-xl sm:rounded-[1.5rem] mb-4 p-4 sm:p-6 flex items-center justify-center overflow-hidden transition-colors duration-500">
+      {/* Nota: Se eliminó el 'overflow-hidden' de aquí para que la sombra del botón del carrito no se corte */}
+      <div className="relative aspect-square bg-gradient-to-tr from-slate-50 to-slate-100/50 group-hover:from-blue-50/50 group-hover:to-blue-100/30 rounded-xl sm:rounded-[1.5rem] mb-4 p-4 sm:p-6 flex items-center justify-center transition-colors duration-500">
         
         {/* ETIQUETAS FLOTANTES */}
         <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-col gap-1.5 z-20">
@@ -57,22 +58,27 @@ export default function ProductCard({ product }) {
           />
         </div>
         
-        {/* BOTÓN DE CARRITO (Siempre visible en Móvil, Hover en Desktop) */}
-        <motion.button 
-          whileTap={{ scale: 0.9 }}
-          onClick={(e) => {
-            e.stopPropagation(); // Evita que al dar clic al carrito, te lleve a la página del producto
-            addToCart(product);
-          }}
-          className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 translate-y-0 opacity-100 lg:translate-y-12 lg:opacity-0 group-hover:translate-y-0 group-hover:opacity-100 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-900 w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-[0_10px_20px_rgba(250,204,21,0.4)] transition-all duration-300 z-20 hover:shadow-[0_10px_25px_rgba(250,204,21,0.6)] border border-yellow-300/50"
-          title="Agregar al Carrito"
-        >
-          <ShoppingCart size={18} className="sm:w-5 sm:h-5 ml-[-2px]" />
-        </motion.button>
+        {/* === BOTÓN DE CARRITO CORREGIDO === */}
+        {/* 1. El contenedor div maneja el hover, posición y transición con Tailwind */}
+        <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 translate-y-0 opacity-100 lg:translate-y-12 lg:opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 z-20">
+          
+          {/* 2. El motion.button maneja ÚNICAMENTE el efecto de click (scale) con Framer Motion */}
+          <motion.button 
+            whileTap={{ scale: 0.9 }}
+            onClick={(e) => {
+              e.stopPropagation(); // Evita que al dar clic al carrito, te lleve a la página del producto
+              addToCart(product);
+            }}
+            className="bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-900 w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-[0_10px_20px_rgba(250,204,21,0.4)] hover:shadow-[0_10px_25px_rgba(250,204,21,0.6)] border border-yellow-300/50 transition-shadow duration-300"
+            title="Agregar al Carrito"
+          >
+            <ShoppingCart size={18} className="sm:w-5 sm:h-5 ml-[-2px]" />
+          </motion.button>
+        </div>
       </div>
       
       {/* === INFORMACIÓN DEL PRODUCTO === */}
-      <div className="flex flex-col flex-grow px-1 sm:px-2 pb-1 sm:pb-2">
+      <div className="flex flex-col flex-grow px-1 sm:px-2 pb-1 sm:pb-2 z-10 bg-white">
         <p className="text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1.5 line-clamp-1 group-hover:text-[#0866bd]/70 transition-colors">
           {product.category}
         </p>
