@@ -56,11 +56,9 @@ export default function ProductDetail() {
   const [isZooming, setIsZooming] = useState(false);
   const imageContainerRef = useRef(null);
   
-  // Usamos framer-motion para movimiento suave
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
   
-  // Añadimos física (spring) para que la lupa se sienta natural
   const springConfig = { damping: 30, stiffness: 400, mass: 0.5 };
   const smoothMouseX = useSpring(mouseX, springConfig);
   const smoothMouseY = useSpring(mouseY, springConfig);
@@ -69,17 +67,14 @@ export default function ProductDetail() {
 
   const handleMouseMove = (e) => {
     if (!imageContainerRef.current) return;
-    
     const { left, top, width, height } = imageContainerRef.current.getBoundingClientRect();
     
-    // Posición exacta del mouse relativa al contenedor
     const x = e.clientX - left;
     const y = e.clientY - top;
     
     mouseX.set(x);
     mouseY.set(y);
 
-    // Porcentaje para mover el fondo dentro de la lupa
     const percentX = (x / width) * 100;
     const percentY = (y / height) * 100;
     setBgPosition(`${percentX}% ${percentY}%`);
@@ -101,6 +96,12 @@ export default function ProductDetail() {
   const [toast, setToast] = useState(null);
 
   const dateOptions = { day: 'numeric', month: 'short', year: 'numeric' };
+
+  // === SOLUCIÓN: FUNCIÓN FALTANTE PARA FORMATEAR MONEDA ===
+  const formatMXN = (amount) => {
+    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount || 0);
+  };
+  // ========================================================
 
   useEffect(() => {
     const fetchProductAndReviews = async () => {
@@ -327,34 +328,27 @@ export default function ProductDetail() {
                    style={{
                      x: smoothMouseX,
                      y: smoothMouseY,
-                     // Centramos el círculo en el cursor
                      translateX: "-50%",
                      translateY: "-50%",
-                     // Tamaño de la lupa
                      width: 250,
                      height: 250,
                    }}
                  >
-                   {/* Capa con la imagen aumentada */}
                    <div 
                      className="w-full h-full"
                      style={{
                        backgroundImage: `url(${product.images[currentImageIndex]})`,
                        backgroundPosition: bgPosition,
-                       // Qué tanto aumento queremos (ej. 250% = 2.5x zoom)
                        backgroundSize: '250%', 
                        backgroundRepeat: 'no-repeat',
                      }}
                    />
-                   
-                   {/* Retícula sutil tipo visor (Crosshair) */}
                    <div className="absolute inset-0 flex items-center justify-center opacity-30 mix-blend-overlay">
                      <div className="w-full h-[1px] bg-[#0866bd]"></div>
                      <div className="absolute h-full w-[1px] bg-[#0866bd]"></div>
                    </div>
                  </motion.div>
                )}
-               {/* ============================================== */}
                
                {product.isUniversal && (
                  <div className="absolute top-5 left-5 bg-gradient-to-r from-emerald-400 to-emerald-600 text-white text-[9px] font-black px-4 py-2 rounded-xl uppercase tracking-[0.2em] shadow-[0_10px_20px_rgba(16,185,129,0.3)] flex items-center gap-2 z-30 backdrop-blur-md border border-white/20">
@@ -545,7 +539,6 @@ export default function ProductDetail() {
                     ) : product.compatibility.length > 0 ? (
                       
                       <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-[0_15px_50px_rgba(0,0,0,0.03)] overflow-hidden flex flex-col relative">
-                        {/* Buscador de Pestaña (Sticky) */}
                         <div className="p-6 sm:p-8 border-b border-slate-100 bg-slate-50/80 backdrop-blur-md sticky top-0 z-10">
                           <div className="relative group">
                             <Search size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#0866bd] transition-colors" />
@@ -559,7 +552,6 @@ export default function ProductDetail() {
                           </div>
                         </div>
 
-                        {/* Contenedor con Scroll Interno Limitado */}
                         <div className="max-h-[450px] overflow-y-auto custom-scrollbar p-6 sm:p-10 bg-slate-50/30">
                            {tabFilteredCompatibility.length > 0 ? (
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -677,7 +669,6 @@ export default function ProductDetail() {
               transition={{ type: "spring", stiffness: 350, damping: 25 }}
               className="relative bg-white rounded-[3rem] w-full max-w-lg flex flex-col shadow-[0_40px_80px_rgba(0,0,0,0.4)] overflow-hidden border border-white/20"
             >
-              {/* Header Modal */}
               <div className="px-10 py-8 bg-gradient-to-br from-[#0866bd] to-blue-900 text-white flex justify-between items-center shrink-0 relative overflow-hidden">
                 <div className="absolute top-[-20%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
                 <h3 className="text-xs font-black uppercase tracking-[0.25em] flex items-center gap-3 relative z-10">
@@ -687,8 +678,6 @@ export default function ProductDetail() {
               </div>
               
               <form onSubmit={handleSubmitReview} className="p-10 space-y-8 bg-[#f8fafc] grow">
-                
-                {/* Estrellas Interactivas */}
                 <div className="flex flex-col items-center bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Selecciona tu calificación</p>
                   <div className="flex justify-center gap-2 sm:gap-4">
