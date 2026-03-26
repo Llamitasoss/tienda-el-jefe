@@ -1,8 +1,9 @@
 import React, { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Zap, Flame, Sparkles } from 'lucide-react';
+import { ShoppingCart, Zap, Flame, Sparkles, Star } from 'lucide-react';
 import { CartContext } from '../../context/CartContext';
+
 
 export default function ProductCard({ product }) {
   const { addToCart } = useContext(CartContext);
