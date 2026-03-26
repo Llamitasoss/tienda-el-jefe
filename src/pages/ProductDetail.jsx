@@ -5,7 +5,7 @@ import { db } from '../firebase/config';
 import { motion, AnimatePresence, useMotionValue, useSpring, useMotionTemplate } from 'framer-motion';
 import { 
   ShieldCheck, Loader2, AlertCircle, Check, Star, StarHalf, Shield, Share2, Store, X, Search, CheckCircle, UserCircle2, Send, Zap, ShoppingCart, MessageCircle, ChevronRight, Package, ZoomIn,
-  ScanSearch, CreditCard, RefreshCcw, MapPin, Clock, Flame
+  ScanSearch, RefreshCcw, MapPin, Flame, Activity
 } from 'lucide-react';
 import { CartContext } from '../context/CartContext';
 import ProductGrid from '../components/products/ProductGrid';
@@ -24,15 +24,13 @@ const Toast = ({ message, type, onClose }) => {
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: -50, scale: 0.9 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -20, scale: 0.9 }}
-      className={`fixed top-6 left-1/2 -translate-x-1/2 z-[300] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-md border ${
-        type === 'success' ? 'bg-emerald-500/90 border-emerald-400 text-white' : 'bg-red-500/90 border-red-400 text-white'
+      initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -20, scale: 0.9 }}
+      className={`fixed top-6 left-1/2 -translate-x-1/2 z-[300] px-6 py-4 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.2)] flex items-center gap-3 backdrop-blur-xl border ${
+        type === 'success' ? 'bg-emerald-500/90 border-emerald-300 text-white' : 'bg-red-500/90 border-red-300 text-white'
       }`}
     >
       {type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-      <span className="text-xs font-bold uppercase tracking-widest">{message}</span>
+      <span className="text-xs font-black uppercase tracking-widest">{message}</span>
     </motion.div>
   );
 };
@@ -54,18 +52,20 @@ export default function ProductDetail() {
   
   const [tabSearchTerm, setTabSearchTerm] = useState('');
   
-  // === SOLUCIÓN: LUPA OPTIMIZADA A 60FPS (Sin Lag) ===
+  // === LUPA OPTIMIZADA A 60FPS (SIN CRASHES) ===
   const [isZooming, setIsZooming] = useState(false);
   const [isScannerActive, setIsScannerActive] = useState(false); 
   const imageContainerRef = useRef(null);
 
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
-  const bgX = useMotionValue(50); // Background X en porcentaje
-  const bgY = useMotionValue(50); // Background Y en porcentaje
+  const bgX = useMotionValue(50); 
+  const bgY = useMotionValue(50); 
   
-  // Física ajustada para que siga el mouse casi de inmediato (snappy)
-  const springConfig = { damping: 25, stiffness: 600, mass: 0.05 };
+  // ¡AQUÍ ESTABA EL ERROR #310! El Hook DEBE estar siempre en el nivel superior.
+  const bgPositionTemplate = useMotionTemplate`${bgX}% ${bgY}%`;
+  
+  const springConfig = { damping: 30, stiffness: 400, mass: 0.1 };
   const smoothMouseX = useSpring(mouseX, springConfig);
   const smoothMouseY = useSpring(mouseY, springConfig);
 
@@ -73,14 +73,12 @@ export default function ProductDetail() {
     if (!imageContainerRef.current || isScannerActive) return; 
     const { left, top, width, height } = imageContainerRef.current.getBoundingClientRect();
     
-    // Posición del mouse en píxeles (Para mover la lupa física)
     const x = e.clientX - left;
     const y = e.clientY - top;
     
     mouseX.set(x);
     mouseY.set(y);
     
-    // Posición en porcentajes (Para mover la imagen de fondo SIN usar React state)
     const xPercent = Math.max(0, Math.min(100, (x / width) * 100));
     const yPercent = Math.max(0, Math.min(100, (y / height) * 100));
 
@@ -108,10 +106,7 @@ export default function ProductDetail() {
   const [toast, setToast] = useState(null);
 
   const dateOptions = { day: 'numeric', month: 'short', year: 'numeric' };
-
-  const formatMXN = (amount) => {
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount || 0);
-  };
+  const formatMXN = (amount) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount || 0);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -143,7 +138,7 @@ export default function ProductDetail() {
             price: data.promoPrice || data.price || data.Precio || 0,
             originalPrice: data.promoPrice ? data.price : (data.PrecioBase || null),
             images: productImages,
-            features: data.caracteristicas || (data.Descripcion ? [data.Descripcion] : ["Pieza de alta calidad garantizada."]),
+            features: data.caracteristicas || (data.Descripcion ? [data.Descripcion] : ["Pieza de alta calidad garantizada por El Jefe."]),
             compatibility: data.compatibilidad || [],
             stock: parseInt(data.stock) || 0,
             isUniversal: data.isUniversal || false
@@ -156,20 +151,22 @@ export default function ProductDetail() {
           });
         }
 
-        const reviewsRef = collection(db, `productos/${id}/reseñas`);
-        const reviewsSnap = await getDocs(reviewsRef);
-        let fetchedReviews = [];
-        let totalStars = 0;
-        
-        reviewsSnap.forEach(r => {
-          const rData = r.data();
-          fetchedReviews.push({ id: r.id, ...rData });
-          totalStars += rData.rating;
-        });
-
-        fetchedReviews.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        setReviews(fetchedReviews);
-        setAverageRating(fetchedReviews.length > 0 ? totalStars / fetchedReviews.length : 0);
+        try {
+          const reviewsRef = collection(db, `productos/${id}/reseñas`);
+          const reviewsSnap = await getDocs(reviewsRef);
+          let fetchedReviews = [];
+          let totalStars = 0;
+          reviewsSnap.forEach(r => {
+            const rData = r.data();
+            fetchedReviews.push({ id: r.id, ...rData });
+            totalStars += rData.rating;
+          });
+          fetchedReviews.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          setReviews(fetchedReviews);
+          setAverageRating(fetchedReviews.length > 0 ? totalStars / fetchedReviews.length : 0);
+        } catch (e) {
+          console.warn("Permisos de reseñas insuficientes, omitiendo reseñas", e);
+        }
 
         const relSnap = await getDocs(query(collection(db, "productos"), limit(4)));
         let relProds = [];
@@ -178,8 +175,7 @@ export default function ProductDetail() {
             const relData = d.data();
             relProds.push({ 
               id: d.id, name: relData.name || relData.Nombre, price: relData.promoPrice || relData.price || relData.Precio, 
-              img: relData.images?.[0] || "https://placehold.co/300x300/f8fafc/0866BD", 
-              category: relData.subCat || relData.cat || relData.Categoria 
+              img: relData.images?.[0] || "https://placehold.co/300x300/f8fafc/0866BD", category: relData.subCat || relData.cat || relData.Categoria 
             });
           }
         });
@@ -215,28 +211,17 @@ export default function ProductDetail() {
   const handleSubmitReview = async (e) => {
     e.preventDefault();
     if(!newReview.name || !newReview.comment) return;
-    
     setIsSubmittingReview(true);
     try {
-      const reviewData = { 
-        name: newReview.name, 
-        rating: newReview.rating, 
-        comment: newReview.comment, 
-        createdAt: new Date().toISOString(), 
-        verified: true 
-      };
-      
+      const reviewData = { name: newReview.name, rating: newReview.rating, comment: newReview.comment, createdAt: new Date().toISOString(), verified: true };
       const docRef = await addDoc(collection(db, `productos/${id}/reseñas`), reviewData);
       const updatedReviews = [{ id: docRef.id, ...reviewData }, ...reviews];
-      
       setReviews(updatedReviews);
       setAverageRating(updatedReviews.reduce((acc, curr) => acc + curr.rating, 0) / updatedReviews.length);
       setShowReviewForm(false);
       setNewReview({ name: '', rating: 5, comment: '' });
       setToast({ message: "¡Reseña publicada con éxito!", type: 'success' });
-      
     } catch (error) { 
-      console.error("Error guardando reseña:", error);
       setToast({ message: "Error al publicar. Revisa tu conexión.", type: 'error' });
     }
     setIsSubmittingReview(false);
@@ -259,9 +244,11 @@ export default function ProductDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-slate-400 bg-[#0f172a]">
-        <Loader2 className="animate-spin mb-6 text-[#0866bd]" size={48} />
-        <p className="font-bold tracking-[0.3em] uppercase text-[10px] animate-pulse text-blue-200">Sincronizando tecnología...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center text-slate-400 bg-[#f8fafc]">
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
+          <Loader2 className="mb-6 text-[#0866bd]" size={48} />
+        </motion.div>
+        <p className="font-black tracking-[0.3em] uppercase text-[10px] animate-pulse text-slate-400">Sincronizando Inventario...</p>
       </div>
     );
   }
@@ -269,9 +256,9 @@ export default function ProductDetail() {
   if (!product) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-slate-400 bg-[#f8fafc]">
-        <AlertCircle size={56} className="text-red-400 mb-6 drop-shadow-md" />
-        <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight mb-4">Pieza no encontrada</h2>
-        <button onClick={() => navigate('/catalogo')} className="text-[#0866bd] underline uppercase font-bold text-xs tracking-widest hover:text-blue-800 transition-colors">Volver al catálogo</button>
+        <AlertCircle size={64} className="text-red-400 mb-6 drop-shadow-md" />
+        <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tight mb-4">Pieza no encontrada</h2>
+        <button onClick={() => navigate('/catalogo')} className="bg-slate-900 text-white uppercase font-black text-xs tracking-widest px-8 py-4 rounded-full hover:bg-[#0866bd] transition-colors shadow-lg">Volver al catálogo</button>
       </div>
     );
   }
@@ -279,32 +266,26 @@ export default function ProductDetail() {
   const cleanName = product.isUniversal ? product.name.replace(/universal/gi, '').trim() : product.name;
 
   return (
-    <div className="bg-[#f8fafc] min-h-screen selection:bg-yellow-400 selection:text-slate-900 pb-20 overflow-x-hidden relative">
+    <div className="bg-[#f4f7f9] min-h-screen selection:bg-[#0866bd] selection:text-white pb-20 relative">
       
-      <AnimatePresence>
-        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      </AnimatePresence>
+      <AnimatePresence>{toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}</AnimatePresence>
 
-      {/* === STICKY ACTION BAR (Aparece al hacer scroll) === */}
+      {/* STICKY ACTION BAR TOP-TIER */}
       <AnimatePresence>
         {showStickyBar && product.stock > 0 && (
           <motion.div 
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="fixed bottom-4 sm:bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-[100] sm:w-[400px] bg-white/90 backdrop-blur-xl border border-slate-200/50 p-4 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.1)] flex items-center justify-between gap-4"
+            initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] sm:w-auto min-w-[350px] bg-slate-900/90 backdrop-blur-2xl border border-slate-700 p-3 pl-6 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex items-center justify-between gap-6"
           >
-            <div className="flex flex-col overflow-hidden hidden sm:flex">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Añadir al Carrito</span>
-              <span className="text-sm font-black text-slate-800 truncate">{cleanName}</span>
+            <div className="flex flex-col hidden sm:flex">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{product.sku}</span>
+              <span className="text-sm font-black text-white truncate max-w-[200px]">{cleanName}</span>
             </div>
-            <div className="flex items-center gap-4 w-full sm:w-auto">
-              <span className="text-xl font-black text-[#0866bd]">{formatMXN(product.price)}</span>
+            <div className="flex items-center gap-5 w-full sm:w-auto">
+              <span className="text-xl font-black text-yellow-400 drop-shadow-sm">{formatMXN(product.price)}</span>
               <motion.button 
-                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                onClick={handleAdd}
-                className="flex-1 sm:flex-none bg-gradient-to-r from-[#0866bd] to-blue-600 text-white font-black uppercase tracking-[0.1em] rounded-xl px-6 py-3 shadow-[0_10px_20px_rgba(8,102,189,0.3)] text-[10px] flex items-center justify-center gap-2 group"
+                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleAdd}
+                className="flex-1 sm:flex-none bg-white text-[#0866bd] font-black uppercase tracking-[0.1em] rounded-2xl px-6 py-3 shadow-[0_5px_15px_rgba(255,255,255,0.2)] text-[10px] flex items-center justify-center gap-2 group hover:bg-yellow-400 hover:text-slate-900 transition-colors"
               >
                 <ShoppingCart size={16} className="group-hover:animate-bounce" /> Añadir
               </motion.button>
@@ -313,110 +294,73 @@ export default function ProductDetail() {
         )}
       </AnimatePresence>
 
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(8,102,189,0.01)_1.5px,transparent_1.5px),linear-gradient(90deg,rgba(8,102,189,0.01)_1.5px,transparent_1.5px)] bg-[size:30px_30px] opacity-20 pointer-events-none"></div>
+      {/* BACKGROUND FUTURISTA (Blueprint Grid) */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(8,102,189,0.03)_1.5px,transparent_1.5px),linear-gradient(90deg,rgba(8,102,189,0.03)_1.5px,transparent_1.5px)] bg-[size:40px_40px] pointer-events-none"></div>
 
-      <div className="max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-16 relative z-10">
+      {/* === ESTRUCTURA SPLIT-SCREEN PREMIUM === */}
+      <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12 relative z-10">
         
-        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-8">
-          <Link to="/" className="hover:text-[#0866bd] transition-colors">Inicio</Link>
-          <ChevronRight size={12} />
-          <Link to="/catalogo" className="hover:text-[#0866bd] transition-colors">Catálogo</Link>
-          <ChevronRight size={12} />
+        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-8 sm:mb-12 border-b border-slate-200/60 pb-4">
+          <Link to="/" className="hover:text-[#0866bd] transition-colors">Inicio</Link> <ChevronRight size={12} />
+          <Link to="/catalogo" className="hover:text-[#0866bd] transition-colors">Catálogo</Link> <ChevronRight size={12} />
           <span className="text-[#0866bd] truncate max-w-[150px] sm:max-w-none">{product.category}</span>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
+        <div className="flex flex-col lg:flex-row gap-12 lg:gap-20">
           
-          {/* === COLUMNA IZQUIERDA: GALERÍA E INTERACCIÓN === */}
-          <div className="w-full lg:w-[55%] flex flex-col sm:flex-row gap-6 relative">
+          {/* === COLUMNA IZQUIERDA: GALERÍA STICKY & ESCÁNER === */}
+          <div className="w-full lg:w-[55%] flex flex-col gap-6 relative lg:sticky lg:top-32 h-fit">
             
-            {product.images.length > 1 && (
-              <motion.div 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="flex flex-row sm:flex-col gap-4 overflow-x-auto custom-scrollbar justify-center sm:justify-start px-2 py-2 sm:py-0 shrink-0"
-              >
-                {product.images.map((img, idx) => (
-                  <motion.button 
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                    key={idx} onClick={() => setCurrentImageIndex(idx)}
-                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl border flex-shrink-0 overflow-hidden transition-all duration-500 p-2.5 bg-white relative shadow-sm ${currentImageIndex === idx ? 'border-[#0866bd] shadow-[0_5px_15px_rgba(8,102,189,0.2)] ring-2 ring-[#0866bd]/20' : 'border-slate-100 opacity-60 hover:opacity-100 hover:border-slate-300'}`}
-                  >
-                    <img src={img} alt={`thumb-${idx}`} className="w-full h-full object-contain mix-blend-multiply rounded-lg"/>
-                  </motion.button>
-                ))}
-              </motion.div>
-            )}
-
             <motion.div 
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, type: "spring" }}
-              ref={imageContainerRef}
-              onMouseMove={handleMouseMove}
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-              className={`bg-white rounded-[2rem] flex items-center justify-center border border-slate-100 shadow-[0_15px_40px_rgb(0,0,0,0.03)] relative overflow-hidden group transition-all duration-700 hover:shadow-[0_20px_50px_rgba(8,102,189,0.05)] flex-1 min-h-[300px] max-h-[500px] lg:max-h-[600px] aspect-square ${isScannerActive ? 'cursor-default' : 'cursor-none'}`}
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, type: "spring" }}
+              ref={imageContainerRef} onMouseMove={handleMouseMove} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
+              className={`bg-white rounded-[2.5rem] flex items-center justify-center border border-slate-100 shadow-[0_30px_60px_rgba(0,0,0,0.04)] relative overflow-hidden group flex-1 min-h-[400px] lg:min-h-[600px] w-full aspect-square lg:aspect-auto ${isScannerActive ? 'cursor-default' : 'cursor-none'}`}
             >
-               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,1)_0%,rgba(248,250,252,0)_100%)] transition-opacity duration-500 group-hover:opacity-40"></div>
+               {/* Resplandor ambiental de la imagen */}
+               <div className="absolute inset-0 bg-gradient-to-tr from-slate-50 to-blue-50/30 opacity-50"></div>
 
                <motion.img 
-                 key={`normal-${currentImageIndex}`}
-                 src={product.images[currentImageIndex]} 
-                 alt={cleanName} 
-                 className={`relative z-10 w-auto h-auto max-w-full max-h-full mix-blend-multiply transition-all duration-300 ease-out object-contain p-10 sm:p-14 drop-shadow-xl ${isZooming && !isScannerActive ? 'opacity-0' : 'opacity-100 group-hover:drop-shadow-2xl'}`} 
+                 key={`normal-${currentImageIndex}`} src={product.images[currentImageIndex]} alt={cleanName} 
+                 className={`relative z-10 w-auto h-auto max-w-[85%] max-h-[85%] mix-blend-multiply transition-all duration-300 ease-out object-contain drop-shadow-2xl ${isZooming && !isScannerActive ? 'opacity-0' : 'opacity-100 group-hover:scale-105'}`} 
                  onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/600x600/f8fafc/0866BD?text=${encodeURIComponent(product.category)}`; }}
                />
                
-               {/* LUPA FLOTANTE TOP-TIER OPTIMIZADA */}
+               {/* === LUPA FLOTANTE (ARREGLADA Y FLUIDA) === */}
                {isZooming && !isScannerActive && (
                  <motion.div
-                   className="pointer-events-none absolute z-20 rounded-full border-2 border-white/40 shadow-[0_15px_35px_rgba(0,0,0,0.2),inset_0_0_20px_rgba(8,102,189,0.2)] overflow-hidden bg-white/10 backdrop-blur-sm"
-                   style={{
-                     x: smoothMouseX,
-                     y: smoothMouseY,
-                     translateX: "-50%",
-                     translateY: "-50%",
-                     width: 250,
-                     height: 250,
-                   }}
+                   className="pointer-events-none absolute z-20 rounded-full border border-white/60 shadow-[0_20px_40px_rgba(0,0,0,0.15),inset_0_0_30px_rgba(8,102,189,0.1)] overflow-hidden bg-white/20 backdrop-blur-md"
+                   style={{ x: smoothMouseX, y: smoothMouseY, translateX: "-50%", translateY: "-50%", width: 280, height: 280 }}
                  >
                    <motion.div 
                      className="w-full h-full"
                      style={{
                        backgroundImage: `url(${product.images[currentImageIndex]})`,
-                       backgroundPosition: useMotionTemplate`${bgX}% ${bgY}%`, // Directo desde Framer (Sin Lag)
-                       backgroundSize: '250%', 
+                       backgroundPosition: bgPositionTemplate, 
+                       backgroundSize: '200%', 
                        backgroundRepeat: 'no-repeat',
                      }}
                    />
-                   <div className="absolute inset-0 flex items-center justify-center opacity-30 mix-blend-overlay">
-                     <div className="w-full h-[1px] bg-[#0866bd]"></div>
-                     <div className="absolute h-full w-[1px] bg-[#0866bd]"></div>
+                   <div className="absolute inset-0 flex items-center justify-center opacity-20 mix-blend-overlay">
+                     <div className="w-full h-[1px] bg-slate-900"></div><div className="absolute h-full w-[1px] bg-slate-900"></div>
                    </div>
                  </motion.div>
                )}
 
+               {/* === HOLO-SCANNER FUTURISTA === */}
                <AnimatePresence>
                  {isScannerActive && (
-                   <motion.div 
-                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                     className="absolute inset-0 z-30 bg-[#0866bd]/5 mix-blend-multiply pointer-events-none"
-                   >
-                     <div className="absolute inset-0 bg-[linear-gradient(rgba(8,102,189,0.3)_1px,transparent_1px),linear-gradient(90deg,rgba(8,102,189,0.3)_1px,transparent_1px)] bg-[size:40px_40px] opacity-30"></div>
+                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-30 bg-[#0866bd]/10 backdrop-blur-[2px] mix-blend-multiply pointer-events-none">
+                     <div className="absolute inset-0 bg-[linear-gradient(rgba(8,102,189,0.4)_1px,transparent_1px),linear-gradient(90deg,rgba(8,102,189,0.4)_1px,transparent_1px)] bg-[size:30px_30px] opacity-40"></div>
                      <motion.div 
-                       animate={{ top: ['0%', '100%', '0%'] }}
-                       transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                       className="absolute left-0 w-full h-[2px] bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,1)]"
+                       animate={{ top: ['0%', '100%', '0%'] }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                       className="absolute left-0 w-full h-[2px] bg-cyan-400 shadow-[0_0_20px_rgba(34,211,238,1)]"
                      >
-                        <div className="absolute top-0 left-0 w-full h-10 bg-gradient-to-b from-transparent to-cyan-400/20 -translate-y-full"></div>
+                        <div className="absolute top-0 left-0 w-full h-20 bg-gradient-to-b from-transparent to-cyan-400/30 -translate-y-full"></div>
                      </motion.div>
-                     <div className="absolute top-4 left-4 text-cyan-500/80 font-mono text-[8px] uppercase tracking-widest flex flex-col gap-1">
-                       <span>SYS: ONLINE</span>
+                     <div className="absolute top-6 left-6 text-cyan-400 font-mono text-[10px] uppercase tracking-widest flex flex-col gap-1.5 drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]">
+                       <span className="flex items-center gap-2"><Activity size={12} className="animate-pulse"/> SYS: ONLINE</span>
                        <span>SKU: {product.sku}</span>
-                       <span>TGT: MOTO-PART</span>
+                       <span>TGT: EL_JEFE_PART</span>
                      </div>
                    </motion.div>
                  )}
@@ -425,81 +369,96 @@ export default function ProductDetail() {
                <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-40">
                  <button 
                    onClick={() => setIsScannerActive(!isScannerActive)}
-                   className={`p-3 rounded-2xl backdrop-blur-md transition-all duration-300 shadow-sm border ${isScannerActive ? 'bg-[#0866bd] text-white border-blue-400' : 'bg-white/80 text-slate-400 border-slate-100 hover:text-[#0866bd]'}`}
+                   className={`p-3.5 rounded-2xl backdrop-blur-xl transition-all duration-300 shadow-lg border ${isScannerActive ? 'bg-[#0866bd] text-white border-blue-400' : 'bg-white/80 text-slate-500 border-white hover:text-[#0866bd] hover:bg-white'}`}
                    title="Modo Escáner"
                  >
-                   <ScanSearch size={20} className={isScannerActive ? 'animate-pulse' : ''}/>
+                   <ScanSearch size={22} className={isScannerActive ? 'animate-pulse' : ''}/>
                  </button>
                </div>
                
                {product.isUniversal && (
-                 <div className="absolute top-5 right-5 sm:left-5 sm:right-auto bg-gradient-to-r from-emerald-400 to-emerald-600 text-white text-[9px] font-black px-4 py-2 rounded-xl uppercase tracking-[0.2em] shadow-[0_10px_20px_rgba(16,185,129,0.3)] flex items-center gap-2 z-30 backdrop-blur-md border border-white/20">
-                   <Zap size={12} className="animate-pulse" /> Plug & Play
+                 <div className="absolute top-6 right-6 sm:left-6 sm:right-auto bg-slate-900 text-yellow-400 text-[10px] font-black px-5 py-2.5 rounded-xl uppercase tracking-[0.2em] shadow-xl flex items-center gap-2 z-30 border border-slate-700">
+                   <Zap size={14} className="fill-current animate-pulse" /> Plug & Play
                  </div>
                )}
             </motion.div>
+
+            {/* Miniaturas Premium */}
+            {product.images.length > 1 && (
+              <div className="flex gap-4 overflow-x-auto custom-scrollbar pb-2 px-1">
+                {product.images.map((img, idx) => (
+                  <motion.button 
+                    whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }} key={idx} onClick={() => setCurrentImageIndex(idx)}
+                    className={`w-20 h-20 rounded-2xl border flex-shrink-0 overflow-hidden transition-all duration-300 p-2 bg-white relative ${currentImageIndex === idx ? 'border-[#0866bd] shadow-[0_10px_20px_rgba(8,102,189,0.15)] ring-2 ring-[#0866bd]/20' : 'border-slate-200 opacity-60 hover:opacity-100 hover:shadow-md'}`}
+                  >
+                    <img src={img} alt={`thumb-${idx}`} className="w-full h-full object-contain mix-blend-multiply"/>
+                  </motion.button>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="w-full lg:w-[45%] flex flex-col pt-2 h-fit relative">
+          {/* === COLUMNA DERECHA: INFO Y COMPRA === */}
+          <div className="w-full lg:w-[45%] flex flex-col h-fit relative">
             
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
               
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 uppercase tracking-tighter mb-4 leading-[1.1] drop-shadow-sm mt-2">
+              {/* Título y Badges */}
+              <h1 className="text-4xl lg:text-[3.2rem] font-black text-slate-900 uppercase tracking-tighter mb-4 leading-[1.05] drop-shadow-sm">
                 {cleanName}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-3 mb-6">
-                <div className="flex items-center gap-1 bg-yellow-100/50 text-yellow-700 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border border-yellow-200/50">
-                  <Star size={12} className="fill-current" /> {averageRating > 0 ? averageRating.toFixed(1) : 'Nuevo'}
+              <div className="flex items-center gap-4 mb-8">
+                <div className="flex items-center gap-1.5 bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest border border-yellow-200">
+                  <Star size={14} className="fill-current" /> {averageRating > 0 ? averageRating.toFixed(1) : 'Nuevo'}
                 </div>
-                <span className="text-slate-300">|</span>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Refacción OEM</span>
+                <div className="h-1 w-1 bg-slate-300 rounded-full"></div>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">Refacción OEM</span>
+                <div className="h-1 w-1 bg-slate-300 rounded-full"></div>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">SKU: {product.sku}</span>
               </div>
-
-              <p className="text-slate-500 text-sm font-medium leading-relaxed mb-6 max-w-xl">
-                 Configura tu motocicleta en el buscador principal para garantizar la compatibilidad exacta de esta pieza. Calidad premium y alta durabilidad.
-              </p>
               
-              <div ref={buySectionRef} className="mb-6 flex flex-col items-start bg-gradient-to-br from-white to-slate-50 p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 shadow-[0_15px_40px_rgba(0,0,0,0.03)] relative overflow-hidden group hover:border-blue-100/50 transition-colors duration-500">
-                <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-white to-transparent opacity-60 pointer-events-none transform skew-x-12 translate-x-10 group-hover:translate-x-20 transition-transform duration-1000"></div>
-                
-                {/* === NUEVO: MÓDULO FOMO Y URGENCIA DE STOCK === */}
-                <AnimatePresence mode="wait">
-                  {product.stock > 0 && product.stock <= 10 && (
-                     <motion.div 
-                        initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
-                        className={`w-full mb-6 p-4 rounded-2xl flex items-center gap-4 relative overflow-hidden border ${product.stock <= 3 ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'}`}
-                     >
-                        <div className={`absolute top-0 left-0 w-1 h-full ${product.stock <= 3 ? 'bg-red-500 animate-pulse' : 'bg-orange-400'}`}></div>
-                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm shrink-0">
-                           {product.stock <= 3 ? <Flame className="text-red-500" size={20} /> : <Clock className="text-orange-500" size={20} />}
-                        </div>
-                        <div>
-                           <p className={`font-black text-[10px] uppercase tracking-widest ${product.stock <= 3 ? 'text-red-600' : 'text-orange-600'}`}>
-                             {product.stock <= 3 ? '¡Alta Demanda!' : 'Stock Limitado'}
-                           </p>
-                           <p className={`text-xs font-bold mt-0.5 ${product.stock <= 3 ? 'text-red-500' : 'text-orange-500'}`}>
-                              Solo quedan <span className={`font-black text-sm px-1 ${product.stock <= 3 ? 'text-red-600' : 'text-orange-600'}`}>{product.stock}</span> piezas en mostrador
-                           </p>
-                        </div>
-                     </motion.div>
-                  )}
-                </AnimatePresence>
+              {/* === NUEVO: MÓDULO FOMO FUTURISTA === */}
+              <AnimatePresence mode="wait">
+                {product.stock > 0 && product.stock <= 10 && (
+                   <motion.div 
+                      initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                      className={`w-full mb-8 p-4 rounded-2xl flex items-center gap-4 relative overflow-hidden border shadow-sm ${product.stock <= 3 ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}
+                   >
+                      <div className={`absolute top-0 left-0 w-1.5 h-full ${product.stock <= 3 ? 'bg-red-500 animate-pulse' : 'bg-amber-500'}`}></div>
+                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm shrink-0 border border-white/50">
+                         {product.stock <= 3 ? <Flame className="text-red-500" size={20} /> : <Clock className="text-amber-500" size={20} />}
+                      </div>
+                      <div>
+                         <p className={`font-black text-[10px] uppercase tracking-widest ${product.stock <= 3 ? 'text-red-600' : 'text-amber-600'}`}>
+                           {product.stock <= 3 ? '¡ALERTA DE ALTA DEMANDA!' : 'INVENTARIO LIMITADO'}
+                         </p>
+                         <p className={`text-xs font-bold mt-0.5 ${product.stock <= 3 ? 'text-red-500' : 'text-amber-600/80'}`}>
+                            Quedan exactamente <span className={`font-black text-sm px-1 ${product.stock <= 3 ? 'text-red-600' : 'text-amber-600'}`}>{product.stock}</span> piezas en mostrador.
+                         </p>
+                      </div>
+                   </motion.div>
+                )}
+              </AnimatePresence>
 
+              {/* Tarjeta de Compra (Glassmorphism Fuerte) */}
+              <div ref={buySectionRef} className="mb-8 flex flex-col bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.03)] relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-slate-50 to-transparent opacity-60 pointer-events-none transform skew-x-12 translate-x-10"></div>
+                
                 <AnimatePresence mode="wait">
                   <motion.div 
                     key={addedAnimation ? 'added' : 'price'}
                     initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }}
-                    className="flex flex-col items-baseline gap-4 mb-6 relative z-10 w-full"
+                    className="flex flex-col items-baseline gap-2 mb-8 relative z-10 w-full"
                   >
                     {addedAnimation ? (
-                      <div className="flex items-center gap-3 bg-emerald-50 text-emerald-600 px-6 py-4 rounded-2xl border border-emerald-100 shadow-sm w-full">
+                      <div className="flex items-center gap-3 bg-emerald-50 text-emerald-600 px-6 py-5 rounded-2xl border border-emerald-100 shadow-sm w-full">
                          <CheckCircle size={24} />
-                         <span className="text-sm font-black uppercase tracking-widest mt-0.5">¡Agregado al Garage!</span>
+                         <span className="text-sm font-black uppercase tracking-widest mt-0.5">¡Asegurado en tu carrito!</span>
                       </div>
                     ) : (
                       <div className="flex items-baseline gap-4">
-                         <span className="text-4xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-[#0866bd] to-blue-700 tracking-tighter drop-shadow-sm">
+                         <span className="text-[3.5rem] font-black text-slate-900 tracking-tighter drop-shadow-sm leading-none">
                            {formatMXN(product.price)}
                          </span>
                          {product.originalPrice && (
@@ -513,62 +472,43 @@ export default function ProductDetail() {
                 </AnimatePresence>
                 
                 <div className="flex flex-col sm:flex-row gap-4 w-full relative z-10">
-                  <div className="flex items-center bg-white border border-slate-200 rounded-[1.5rem] h-16 sm:w-36 overflow-hidden focus-within:border-[#0866bd] transition-all shadow-sm shrink-0">
-                     <button onClick={() => setQty(Math.max(1, qty - 1))} disabled={product.stock === 0} className="w-12 h-full text-slate-400 hover:bg-slate-50 hover:text-[#0866bd] transition-colors text-xl font-bold disabled:opacity-50">-</button>
-                     <span className="flex-1 text-center font-black text-slate-800 text-lg">{qty}</span>
-                     <button onClick={() => setQty(Math.min(product.stock, qty + 1))} disabled={product.stock === 0} className="w-12 h-full text-slate-400 hover:bg-slate-50 hover:text-[#0866bd] transition-colors text-xl font-bold disabled:opacity-50">+</button>
+                  <div className="flex items-center bg-slate-50 border border-slate-200 rounded-2xl h-16 sm:w-36 overflow-hidden focus-within:border-[#0866bd] transition-all shadow-inner shrink-0">
+                     <button onClick={() => setQty(Math.max(1, qty - 1))} disabled={product.stock === 0} className="w-12 h-full text-slate-500 hover:bg-white hover:text-[#0866bd] transition-colors text-xl font-bold disabled:opacity-50">-</button>
+                     <span className="flex-1 text-center font-black text-slate-900 text-lg bg-white h-full flex items-center justify-center border-x border-slate-200 shadow-sm">{qty}</span>
+                     <button onClick={() => setQty(Math.min(product.stock, qty + 1))} disabled={product.stock === 0} className="w-12 h-full text-slate-500 hover:bg-white hover:text-[#0866bd] transition-colors text-xl font-bold disabled:opacity-50">+</button>
                   </div>
                   
                   <motion.button 
-                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }}
-                    onClick={handleAdd} disabled={product.stock === 0}
-                    className="relative flex-1 overflow-hidden bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-900 font-black uppercase tracking-[0.25em] rounded-[1.5rem] shadow-[0_15px_30px_rgba(250,204,21,0.3)] hover:shadow-[0_20px_40px_rgba(250,204,21,0.4)] transition-all duration-500 text-xs flex items-center justify-center h-16 group disabled:opacity-50 disabled:grayscale"
+                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} onClick={handleAdd} disabled={product.stock === 0}
+                    className="relative flex-1 overflow-hidden bg-[#0866bd] text-white font-black uppercase tracking-[0.2em] rounded-2xl shadow-[0_15px_30px_rgba(8,102,189,0.3)] hover:shadow-[0_20px_40px_rgba(8,102,189,0.4)] hover:bg-blue-700 transition-all duration-500 text-xs flex items-center justify-center h-16 group disabled:opacity-50 disabled:grayscale"
                   >
-                    <div className="absolute top-0 left-[-100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/60 to-transparent skew-x-[-25deg] group-hover:left-[200%] transition-all duration-1000 ease-in-out z-0"></div>
+                    <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.2)_50%,transparent_75%,transparent_100%)] bg-[length:250%_250%,100%_100%] bg-[position:-100%_0,0_0] group-hover:bg-[position:200%_0,0_0] transition-[background-position] duration-[1.5s]"></div>
                     <span className="relative z-10 flex items-center gap-3">
-                      {product.stock === 0 ? 'AGOTADO' : <><ShoppingCart size={20} className="group-hover:animate-bounce" /> Comprar Ahora</>}
+                      {product.stock === 0 ? 'AGOTADO' : <><ShoppingCart size={20} className="group-hover:animate-bounce" /> Añadir a mi orden</>}
                     </span>
                   </motion.button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10 pb-10 border-b border-slate-100">
-                 
-                 <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex items-start gap-3 hover:border-emerald-100 transition-colors duration-300">
-                   <div className="bg-emerald-50 text-emerald-600 p-2 rounded-xl shrink-0"><Store size={18}/></div>
+              {/* Logística Mostrador */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
+                 <div className="bg-white p-5 rounded-2xl border border-slate-200 flex items-start gap-4 shadow-sm hover:border-[#0866bd]/50 transition-colors">
+                   <div className="bg-blue-50 text-[#0866bd] p-2.5 rounded-xl shrink-0"><Store size={20}/></div>
                    <div>
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Disponibilidad</p>
-                     <p className="text-xs font-bold text-slate-800">Recolección Inmediata</p>
-                     <p className="text-[9px] text-slate-500 mt-1 flex items-center gap-1"><MapPin size={10}/> Sucursal Tonalá</p>
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Logística</p>
+                     <p className="text-sm font-bold text-slate-800">Recolección Local</p>
+                     <p className="text-[10px] text-slate-500 mt-1 font-medium">Sucursal Tonalá, Jal.</p>
                    </div>
                  </div>
 
-                 <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex items-start gap-3 hover:border-blue-100 transition-colors duration-300">
-                   <div className="bg-blue-50 text-[#0866bd] p-2 rounded-xl shrink-0"><RefreshCcw size={18}/></div>
+                 <div className="bg-white p-5 rounded-2xl border border-slate-200 flex items-start gap-4 shadow-sm hover:border-emerald-200 transition-colors">
+                   <div className="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl shrink-0"><RefreshCcw size={20}/></div>
                    <div>
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Garantía Exacta</p>
-                     <p className="text-xs font-bold text-slate-800">Cambios sin costo</p>
-                     <p className="text-[9px] text-slate-500 mt-1 flex items-center gap-1"><Clock size={10}/> Atención en mostrador</p>
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Garantía</p>
+                     <p className="text-sm font-bold text-slate-800">100% Compatibilidad</p>
+                     <p className="text-[10px] text-slate-500 mt-1 font-medium">Cambios sin costo</p>
                    </div>
                  </div>
-
-              </div>
-
-              <div className="flex justify-between items-center gap-4">
-                 <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-slate-50 border border-slate-100">
-                   <div className="relative flex h-2.5 w-2.5">
-                     <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${product.stock > 10 ? 'bg-emerald-400' : product.stock > 0 ? 'bg-yellow-400' : 'bg-red-400'}`}></span>
-                     <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${product.stock > 10 ? 'bg-emerald-500' : product.stock > 0 ? 'bg-yellow-500' : 'bg-red-500'}`}></span>
-                   </div>
-                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mt-0.5">
-                     {product.stock > 10 ? 'Stock Disponible' : product.stock > 0 ? `¡Inventario Bajo!` : 'Agotado'}
-                   </span>
-                 </div>
-                 
-                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleShare} className="flex items-center gap-2 text-[10px] font-black text-slate-400 hover:text-[#0866bd] transition-colors uppercase tracking-[0.2em] bg-white shadow-sm px-4 py-2 rounded-full border border-slate-100">
-                   <Share2 size={14} className={shareText === '¡Copiado!' ? 'text-emerald-500' : ''}/>
-                   <span className={`mt-0.5 ${shareText === '¡Copiado!' ? 'text-emerald-500' : ''}`}>{shareText}</span>
-                 </motion.button>
               </div>
 
             </motion.div>
@@ -576,171 +516,131 @@ export default function ProductDetail() {
         </div>
       </div>
 
-      <div className="max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 mt-24 scroll-mt-24 relative z-10">
+      {/* === NAVEGACIÓN DE PESTAÑAS (Estilo SaaS Premium) === */}
+      <div className="max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 mt-12 mb-20 relative z-10">
         
-        <div className="flex justify-center mb-8 relative z-10">
-          <div className="bg-slate-200/50 backdrop-blur-md p-1.5 rounded-full inline-flex shadow-inner relative border border-white/50 overflow-x-auto custom-scrollbar max-w-full">
-            {NAV_TABS.map(tab => (
-              <button 
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)} 
-                className={`relative py-3.5 px-6 sm:px-9 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] rounded-full z-10 transition-colors duration-500 flex items-center gap-2.5 whitespace-nowrap ${activeTab === tab.id ? 'text-[#0866bd]' : 'text-slate-500 hover:text-slate-800'}`}
-              >
-                <tab.icon size={16} strokeWidth={2.5} className={`shrink-0 ${activeTab === tab.id ? 'opacity-100' : 'opacity-50'}`} />
-                <span>{tab.label}</span>
-                {tab.id === 'reviews' && (
-                  <span className={`px-2.5 py-1 rounded-md text-[9px] font-black transition-colors duration-500 shadow-sm ${activeTab === 'reviews' ? 'bg-blue-100 text-[#0866bd]' : 'bg-slate-300/50 text-slate-500'}`}>
-                    {reviews.length}
-                  </span>
-                )}
-                {activeTab === tab.id && (
-                  <motion.div layoutId="active-tab" className="absolute inset-0 bg-white rounded-full shadow-[0_5px_15px_rgba(0,0,0,0.08)] -z-10" transition={{ type: "spring", stiffness: 400, damping: 30 }} />
-                )}
-              </button>
-            ))}
-          </div>
+        <div className="flex border-b border-slate-200 mb-10 overflow-x-auto custom-scrollbar">
+          {NAV_TABS.map(tab => (
+            <button 
+              key={tab.id} onClick={() => setActiveTab(tab.id)} 
+              className={`relative pb-5 px-6 sm:px-10 text-[11px] sm:text-xs font-black uppercase tracking-[0.2em] transition-colors duration-300 flex items-center gap-3 whitespace-nowrap ${activeTab === tab.id ? 'text-[#0866bd]' : 'text-slate-400 hover:text-slate-800'}`}
+            >
+              <tab.icon size={18} strokeWidth={2.5} className={activeTab === tab.id ? 'opacity-100' : 'opacity-50'} />
+              <span>{tab.label}</span>
+              {tab.id === 'reviews' && (
+                <span className={`px-2 py-0.5 rounded-md text-[9px] font-black transition-colors duration-300 ${activeTab === 'reviews' ? 'bg-[#0866bd] text-white' : 'bg-slate-200 text-slate-500'}`}>
+                  {reviews.length}
+                </span>
+              )}
+              {activeTab === tab.id && (
+                <motion.div layoutId="active-tab-line" className="absolute bottom-0 left-0 right-0 h-1 bg-[#0866bd] rounded-t-full shadow-[0_-2px_10px_rgba(8,102,189,0.5)]" transition={{ type: "spring", stiffness: 500, damping: 30 }} />
+              )}
+            </button>
+          ))}
         </div>
         
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.8 }}
-          className="bg-white/90 backdrop-blur-3xl rounded-[3rem] p-6 sm:p-14 min-h-[300px] shadow-[0_20px_50px_rgb(0,0,0,0.03)] border border-white/70 relative -mt-16 pt-24"
-        >
-           <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-blue-100/50 rounded-full blur-[100px] pointer-events-none opacity-40"></div>
-           
+        <div className="min-h-[300px]">
            <AnimatePresence mode="wait">
              <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
                
+               {/* TAB 1: CARACTERÍSTICAS */}
                {activeTab === 'desc' && (
-                 <div className="max-w-4xl mx-auto">
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-7">
-                     {product.features.map((feat, idx) => (
-                        <motion.div 
-                          key={idx}
-                          initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: idx * 0.1 }}
-                          whileHover={{ y: -5, backgroundColor: "#ffffff", borderColor: "#e2e8f0", boxShadow: "0 10px 25px rgba(0,0,0,0.05)" }}
-                          className="flex items-start gap-5 p-7 sm:p-8 bg-slate-50/50 rounded-[2rem] border border-transparent transition-all duration-300 group shadow-inner"
-                        >
-                          <div className="mt-0.5 bg-white p-3 rounded-2xl shadow-sm shrink-0 group-hover:scale-110 group-hover:bg-yellow-400 group-hover:shadow-[0_10px_20px_rgba(250,204,21,0.4)] transition-all duration-300 border border-slate-100">
-                            <Check size={20} strokeWidth={2.5} className="text-[#0866bd] group-hover:text-slate-900 transition-colors"/>
-                          </div>
-                          <p className="text-slate-600 text-sm font-bold leading-relaxed group-hover:text-slate-900 transition-colors mt-1">{feat}</p>
-                        </motion.div>
-                     ))}
-                   </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl">
+                   {product.features.map((feat, idx) => (
+                      <motion.div 
+                        key={idx} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}
+                        className="flex items-start gap-5 p-6 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group"
+                      >
+                        <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 group-hover:bg-blue-50 group-hover:border-blue-200 transition-colors">
+                          <Check size={18} className="text-[#0866bd]"/>
+                        </div>
+                        <p className="text-slate-600 text-sm font-bold leading-relaxed mt-1 group-hover:text-slate-900 transition-colors">{feat}</p>
+                      </motion.div>
+                   ))}
                  </div>
                )}
 
+               {/* TAB 2: COMPATIBILIDAD */}
                {activeTab === 'compatibility' && (
-                 <div className="max-w-4xl mx-auto">
+                 <div className="max-w-4xl">
                     {product.isUniversal ? (
-                      <div className="p-8 sm:p-12 bg-gradient-to-r from-emerald-50 to-white border border-emerald-100/50 rounded-[2rem] flex flex-col md:flex-row items-center gap-8 shadow-sm">
-                        <div className="w-20 h-20 bg-white rounded-[1.5rem] flex items-center justify-center text-emerald-500 shrink-0 shadow-[0_10px_20px_rgba(16,185,129,0.2)] border border-emerald-100"><Zap size={40} className="animate-pulse" /></div>
-                        <div className="text-center md:text-left">
-                          <h4 className="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">Instalación Plug & Play</h4>
-                          <p className="text-sm text-slate-600 font-medium leading-relaxed max-w-xl mx-auto md:mx-0">
-                            Refacción universal diseñada bajo estándares <strong className="text-emerald-700 font-black">OEM Moto Partes El Jefe</strong> para adaptarse a la mayoría de motocicletas sin necesidad de modificaciones técnicas avanzadas.
+                      <div className="p-10 bg-slate-900 text-white rounded-[2rem] flex flex-col sm:flex-row items-center gap-8 shadow-2xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/20 rounded-full blur-[80px] pointer-events-none"></div>
+                        <div className="w-20 h-20 bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400 shrink-0 border border-emerald-500/30 relative z-10"><Zap size={40} className="animate-pulse" /></div>
+                        <div className="text-center sm:text-left relative z-10">
+                          <h4 className="text-2xl font-black uppercase tracking-tight mb-2 text-emerald-400">Instalación Universal</h4>
+                          <p className="text-sm text-slate-300 font-medium leading-relaxed max-w-xl">
+                            Esta pieza está diseñada para adaptarse a la gran mayoría de motocicletas sin necesidad de modificaciones complejas. Estándar de calidad OEM.
                           </p>
                         </div>
                       </div>
                     ) : product.compatibility.length > 0 ? (
-                      
-                      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-[0_15px_50px_rgba(0,0,0,0.03)] overflow-hidden flex flex-col relative">
-                        <div className="p-6 sm:p-8 border-b border-slate-100 bg-slate-50/80 backdrop-blur-md sticky top-0 z-10">
-                          <div className="relative group">
-                            <Search size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#0866bd] transition-colors" />
-                            <input 
-                              type="text" 
-                              placeholder="Filtra por marca, modelo o CC..." 
-                              value={tabSearchTerm} 
-                              onChange={(e) => setTabSearchTerm(e.target.value)} 
-                              className="w-full bg-white border-2 border-slate-100 rounded-[1.5rem] pl-16 pr-6 py-5 text-sm font-bold text-slate-800 focus:outline-none focus:border-[#0866bd] transition-all shadow-sm focus:shadow-[0_10px_20px_rgba(8,102,189,0.1)] placeholder:font-medium placeholder:text-slate-300" 
-                            />
-                          </div>
+                      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                        <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center gap-4">
+                           <Search size={20} className="text-slate-400" />
+                           <input type="text" placeholder="Filtra por marca, modelo o CC..." value={tabSearchTerm} onChange={(e) => setTabSearchTerm(e.target.value)} className="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-800 placeholder:text-slate-400" />
                         </div>
-
-                        <div className="max-h-[450px] overflow-y-auto custom-scrollbar p-6 sm:p-10 bg-slate-50/30">
+                        <div className="max-h-[400px] overflow-y-auto custom-scrollbar p-6 bg-white">
                            {tabFilteredCompatibility.length > 0 ? (
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                {tabFilteredCompatibility.map((c, i) => (
-                                 <motion.div 
-                                   initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
-                                   key={i} 
-                                   className="flex items-center justify-between p-6 rounded-2xl bg-white border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all duration-300 shadow-sm group relative overflow-hidden"
-                                 >
-                                   <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-blue-50/80 to-transparent group-hover:scale-x-125 transition-transform duration-700 opacity-60"></div>
-                                   <span className="font-black text-slate-800 text-sm uppercase tracking-tight relative z-10">{typeof c === 'object' ? `${c.marca} ${c.modelo}` : c}</span>
-                                   <span className="text-[10px] font-black text-[#0866bd] uppercase tracking-widest bg-blue-50 px-4 py-2 rounded-xl border border-blue-100/50 relative z-10 shadow-inner">
+                                 <div key={i} className="flex items-center justify-between p-5 rounded-xl border border-slate-100 bg-slate-50 hover:border-blue-200 hover:bg-white transition-all group">
+                                   <span className="font-black text-slate-800 text-sm uppercase tracking-tight">{typeof c === 'object' ? `${c.marca} ${c.modelo}` : c}</span>
+                                   <span className="text-[10px] font-black text-[#0866bd] uppercase tracking-widest bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100/50">
                                      {typeof c === 'object' ? (c.años.length > 1 ? `${c.años[0]} - ${c.años[c.años.length-1]}` : c.años[0]) : 'Varios'}
                                    </span>
-                                 </motion.div>
+                                 </div>
                                ))}
                              </div>
                            ) : (
-                             <div className="text-center py-20 flex flex-col items-center bg-white rounded-[2rem] border border-slate-100 border-dashed">
-                               <Search size={40} className="text-slate-200 mb-4" />
-                               <p className="text-slate-700 font-black text-lg uppercase tracking-tight">Modelo no encontrado</p>
-                               <p className="text-slate-400 text-sm font-medium mt-2 max-w-xs">Intenta escribir solo el cilindraje o la marca para ver opciones.</p>
-                             </div>
+                             <div className="text-center py-10"><p className="text-slate-400 font-bold uppercase text-sm tracking-wider">No se encontró ese modelo.</p></div>
                            )}
                         </div>
-                        <div className="h-10 w-full bg-gradient-to-t from-slate-50 to-transparent absolute bottom-0 left-0 pointer-events-none"></div>
                       </div>
-                      
                     ) : (
-                      <div className="px-8 py-10 bg-slate-50 rounded-[2rem] text-sm text-slate-500 font-medium text-center border border-slate-100">Información de compatibilidad detallada no disponible. Contacta soporte para confirmar si le queda a tu motocicleta.</div>
+                      <div className="px-8 py-10 bg-white rounded-2xl text-sm text-slate-500 font-bold text-center border border-slate-200 shadow-sm">Consulta con tu mecánico de confianza o en mostrador para confirmar la compatibilidad exacta.</div>
                     )}
                  </div>
                )}
 
+               {/* TAB 3: RESEÑAS */}
                {activeTab === 'reviews' && (
-                 <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-12 lg:gap-20">
-                   
-                   <div className="w-full md:w-1/3 flex flex-col items-center text-center">
-                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-4 bg-slate-50 px-4 py-1.5 rounded-full border border-slate-100">Calificación Global</h4>
-                     <p className="text-7xl sm:text-[6rem] font-black text-slate-900 mb-4 tracking-tighter drop-shadow-md leading-none">{averageRating > 0 ? averageRating.toFixed(1) : '0.0'}</p>
-                     <div className="flex justify-center mb-6 scale-125">{renderStars(averageRating)}</div>
-                     <p className="text-[10px] text-slate-400 font-black mb-12 tracking-widest uppercase">
-                       {reviews.length === 0 ? 'Sin reseñas registradas' : `Basado en ${reviews.length} opiniones de BIKERS`}
-                     </p>
-                     <motion.button 
-                       whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }} 
-                       whileTap={{ scale: 0.95 }} 
-                       onClick={() => setShowReviewForm(true)}
-                       className="w-full bg-slate-900 hover:bg-black text-white font-black py-5 rounded-2xl transition-all duration-300 text-[10px] uppercase tracking-[0.25em] shadow-[0_15px_30px_rgba(0,0,0,0.15)] flex justify-center items-center gap-3 relative overflow-hidden group"
-                     >
-                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-[-25deg] group-hover:translate-x-full transition-transform duration-1000"></div>
-                       <MessageCircle size={18} className="relative z-10"/> <span className="relative z-10 mt-0.5">Escribir Mi Reseña</span>
-                     </motion.button>
+                 <div className="max-w-5xl flex flex-col md:flex-row gap-12 lg:gap-16">
+                   <div className="w-full md:w-1/3 flex flex-col">
+                     <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm text-center flex flex-col items-center">
+                       <p className="text-[7rem] font-black text-slate-900 leading-none tracking-tighter mb-2">{averageRating > 0 ? averageRating.toFixed(1) : '0.0'}</p>
+                       <div className="flex justify-center mb-4 scale-110">{renderStars(averageRating)}</div>
+                       <p className="text-[10px] text-slate-400 font-black mb-8 tracking-widest uppercase">Basado en {reviews.length} calificaciones</p>
+                       <button onClick={() => setShowReviewForm(true)} className="w-full bg-[#0866bd] hover:bg-blue-700 text-white font-black py-4 rounded-xl transition-colors text-[10px] uppercase tracking-[0.2em] shadow-lg flex justify-center items-center gap-2">
+                         <MessageCircle size={16}/> Escribir Reseña
+                       </button>
+                     </div>
                    </div>
                    
-                   <div className="w-full md:w-2/3 md:border-l border-slate-100 md:pl-16">
+                   <div className="w-full md:w-2/3">
                      {reviews.length === 0 ? (
-                       <div className="text-center py-20 bg-slate-50/50 rounded-[3rem] border border-slate-100 border-dashed">
-                         <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100"><MessageCircle size={40} className="text-slate-300" /></div>
-                         <p className="text-lg font-black text-slate-800 uppercase tracking-tight mb-2">Aún no hay comentarios</p>
-                         <p className="text-sm text-slate-500 font-medium max-w-sm mx-auto">Sé el primero en compartir tu experiencia de instalación y calidad con la comunidad.</p>
+                       <div className="text-center py-16 bg-white rounded-[2rem] border border-slate-200 shadow-sm">
+                         <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100"><MessageCircle size={24} className="text-slate-300" /></div>
+                         <p className="text-sm font-black text-slate-800 uppercase tracking-tight">Aún no hay reseñas</p>
                        </div>
                      ) : (
-                       <div className="space-y-8">
+                       <div className="space-y-6">
                          {reviews.map((rev) => (
-                           <div key={rev.id} className="bg-white border border-slate-100 rounded-[2rem] p-8 shadow-[0_10px_30px_rgba(0,0,0,0.02)] hover:shadow-[0_15px_40px_rgba(8,102,189,0.05)] transition-all duration-300 group">
-                             <div className="flex justify-between items-start mb-6 gap-4">
-                               <div className="flex items-center gap-5">
-                                 <div className="w-14 h-14 bg-gradient-to-br from-blue-50 to-white text-[#0866bd] font-black rounded-2xl flex items-center justify-center text-xl uppercase shadow-inner border border-blue-100 group-hover:scale-110 group-hover:bg-gradient-to-br group-hover:from-[#0866bd] group-hover:to-blue-700 group-hover:text-white transition-all duration-500">
+                           <div key={rev.id} className="bg-white border border-slate-200 rounded-[1.5rem] p-6 shadow-sm hover:shadow-md transition-shadow">
+                             <div className="flex justify-between items-start mb-4">
+                               <div className="flex items-center gap-4">
+                                 <div className="w-12 h-12 bg-slate-900 text-white font-black rounded-xl flex items-center justify-center text-lg uppercase shadow-inner">
                                    {rev.name.charAt(0)}
                                  </div>
                                  <div>
-                                   <p className="text-base font-black text-slate-800 uppercase tracking-tight mb-1">{rev.name}</p>
-                                   {rev.verified && <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest flex items-center gap-1.5"><ShieldCheck size={14}/> Compra Verificada</p>}
+                                   <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{rev.name}</p>
+                                   {rev.verified && <p className="text-[9px] text-emerald-500 font-black uppercase tracking-widest flex items-center gap-1 mt-0.5"><ShieldCheck size={12}/> Verificado</p>}
                                  </div>
                                </div>
-                               <div className="flex gap-1 shrink-0 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">{renderStars(rev.rating)}</div>
+                               <div className="flex gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">{renderStars(rev.rating)}</div>
                              </div>
-                             <p className="text-slate-600 text-sm leading-relaxed font-medium pl-[4.5rem] relative">
-                               <Quote size={24} className="absolute left-4 top-0 text-slate-100 -rotate-180" />
-                               {rev.comment}
-                             </p>
-                             <p className="text-[10px] text-slate-400 mt-6 pl-[4.5rem] font-black uppercase tracking-widest">{new Date(rev.createdAt).toLocaleDateString('es-MX', dateOptions)}</p>
+                             <p className="text-slate-600 text-sm leading-relaxed font-medium pl-[4rem]">{rev.comment}</p>
+                             <p className="text-[9px] text-slate-400 mt-4 pl-[4rem] font-black uppercase tracking-widest">{new Date(rev.createdAt).toLocaleDateString('es-MX', dateOptions)}</p>
                            </div>
                          ))}
                        </div>
@@ -751,66 +651,54 @@ export default function ProductDetail() {
 
              </motion.div>
            </AnimatePresence>
-
-        </motion.div>
+        </div>
       </div>
 
-      <div className="mt-32 max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-100 rounded-full blur-[120px] pointer-events-none opacity-20"></div>
-        <ProductGrid products={relatedProducts} title={<span className="text-3xl sm:text-4xl font-black uppercase text-slate-900 tracking-tight">Recomendados <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0866bd] to-blue-600">para ti</span></span>} isInteractiveCarrousel={true}/>
-      </div>
-
+      {/* MODAL RESEÑAS */}
       <AnimatePresence>
         {showReviewForm && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" onClick={() => !isSubmittingReview && setShowReviewForm(false)}></motion.div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !isSubmittingReview && setShowReviewForm(false)}></motion.div>
             
             <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 30 }}
-              transition={{ type: "spring", stiffness: 350, damping: 25 }}
-              className="relative bg-white rounded-[3rem] w-full max-w-lg flex flex-col shadow-[0_40px_80px_rgba(0,0,0,0.4)] overflow-hidden border border-white/20"
+              initial={{ scale: 0.95, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 30 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              className="bg-white w-full max-w-lg rounded-[2rem] relative z-10 shadow-2xl overflow-hidden"
             >
-              <div className="px-10 py-8 bg-gradient-to-br from-[#0866bd] to-blue-900 text-white flex justify-between items-center shrink-0 relative overflow-hidden">
-                <div className="absolute top-[-20%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
-                <h3 className="text-xs font-black uppercase tracking-[0.25em] flex items-center gap-3 relative z-10">
-                  <div className="bg-yellow-400 text-slate-900 p-2 rounded-xl shadow-inner"><Star size={16} className="fill-current"/></div> Mi Opinión Biker
+              <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                  <Star size={18} className="text-yellow-400 fill-current"/> Tu Opinión
                 </h3>
-                <button onClick={() => !isSubmittingReview && setShowReviewForm(false)} className="text-blue-200 hover:text-white bg-white/10 p-2.5 rounded-full shadow-sm hover:bg-white/20 transition-all relative z-10"><X size={18} strokeWidth={2.5}/></button>
+                <button onClick={() => !isSubmittingReview && setShowReviewForm(false)} className="text-slate-400 hover:text-red-500 transition-colors"><X size={20} strokeWidth={2.5}/></button>
               </div>
               
-              <form onSubmit={handleSubmitReview} className="p-10 space-y-8 bg-[#f8fafc] grow">
-                <div className="flex flex-col items-center bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Selecciona tu calificación</p>
-                  <div className="flex justify-center gap-2 sm:gap-4">
+              <form onSubmit={handleSubmitReview} className="p-8 space-y-6">
+                <div className="flex flex-col items-center mb-2">
+                  <div className="flex gap-2">
                     {[1, 2, 3, 4, 5].map((star) => (
-                      <button key={star} type="button" onClick={() => setNewReview({...newReview, rating: star})} className="focus:outline-none transition-transform hover:scale-125 hover:-translate-y-2 active:scale-90 p-2 duration-300">
-                        <Star size={40} fill={star <= newReview.rating ? "#ffc107" : "transparent"} strokeWidth={star <= newReview.rating ? 0 : 2} className={star <= newReview.rating ? "text-[#ffc107] drop-shadow-[0_10px_15px_rgba(255,193,7,0.6)]" : "text-slate-300"} />
+                      <button key={star} type="button" onClick={() => setNewReview({...newReview, rating: star})} className="focus:outline-none transition-transform hover:scale-125 active:scale-90 p-1">
+                        <Star size={36} fill={star <= newReview.rating ? "#facc15" : "transparent"} strokeWidth={star <= newReview.rating ? 0 : 2} className={star <= newReview.rating ? "text-yellow-400" : "text-slate-300"} />
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-2">Tu Nombre (Público)</label>
-                  <div className="relative group">
-                    <UserCircle2 size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#0866bd] transition-colors" />
-                    <input type="text" required placeholder="Ej. Juan Pérez" value={newReview.name} onChange={(e) => setNewReview({...newReview, name: e.target.value})} className="w-full bg-white border-2 border-slate-100 rounded-[1.5rem] pl-16 pr-6 py-5 text-sm font-bold text-slate-700 focus:outline-none focus:border-[#0866bd] transition-all shadow-sm focus:shadow-[0_10px_20px_rgba(8,102,189,0.1)] placeholder:font-medium placeholder:text-slate-300"/>
-                  </div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tu Nombre</label>
+                  <input type="text" required placeholder="Ej. Juan Pérez" value={newReview.name} onChange={(e) => setNewReview({...newReview, name: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:border-[#0866bd] transition-colors"/>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-2">¿Qué te pareció la calidad?</label>
-                  <textarea required rows="4" placeholder="La pieza llegó en perfectas condiciones y..." value={newReview.comment} onChange={(e) => setNewReview({...newReview, comment: e.target.value})} className="w-full bg-white border-2 border-slate-100 rounded-[1.5rem] p-6 text-sm font-bold text-slate-700 focus:outline-none focus:border-[#0866bd] transition-all shadow-sm resize-none leading-relaxed focus:shadow-[0_10px_20px_rgba(8,102,189,0.1)] placeholder:font-medium placeholder:text-slate-300"></textarea>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Comentario</label>
+                  <textarea required rows="4" placeholder="¿Qué tal la calidad de la pieza?" value={newReview.comment} onChange={(e) => setNewReview({...newReview, comment: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl p-4 text-sm font-bold text-slate-800 focus:outline-none focus:border-[#0866bd] transition-colors resize-none"></textarea>
                 </div>
 
-                <motion.button 
-                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                <button 
                   type="submit" disabled={isSubmittingReview} 
-                  className="w-full bg-slate-900 hover:bg-black text-white font-black px-8 py-5 rounded-[1.5rem] uppercase tracking-[0.25em] transition-all duration-300 text-[11px] flex items-center justify-center h-16 gap-3 disabled:opacity-50 disabled:grayscale shadow-[0_15px_30px_rgba(0,0,0,0.2)] relative overflow-hidden group"
+                  className="w-full bg-[#0866bd] hover:bg-blue-700 text-white font-black py-4 rounded-xl uppercase tracking-widest transition-colors text-xs flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-25deg] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out"></div>
-                  {isSubmittingReview ? <><Loader2 size={20} className="animate-spin relative z-10" /> <span className="relative z-10 mt-0.5">Publicando...</span></> : <><Send size={20} className="relative z-10 group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" /> <span className="relative z-10 mt-0.5">Publicar Mi Reseña</span></>}
-                </motion.button>
+                  {isSubmittingReview ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                  {isSubmittingReview ? 'Publicando...' : 'Publicar Reseña'}
+                </button>
               </form>
             </motion.div>
           </div>
