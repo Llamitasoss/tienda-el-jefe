@@ -7,16 +7,16 @@ const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.15, delayChildren: 0.1 }
+    transition: { staggerChildren: 0.1, delayChildren: 0.1 }
   }
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 40, filter: "blur(10px)" },
+  hidden: { opacity: 0, y: 30, filter: "blur(5px)" },
   visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
 
-// === COMPONENTE PREMIUM: TARJETA FROST GLASS CON MAGNÉTISMO DORADO ===
+// === COMPONENTE PREMIUM: TARJETA BLANCA CON RESPLANDOR AZUL BRAND ===
 const GlowCard = ({ children, className = "" }) => {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -30,30 +30,17 @@ const GlowCard = ({ children, className = "" }) => {
   return (
     <motion.div
       variants={itemVariants}
-      className={`relative group rounded-[2.5rem] bg-white/10 backdrop-blur-2xl border border-white/20 shadow-[0_20px_60px_rgba(0,0,0,0.2)] overflow-hidden ${className}`}
+      className={`relative group rounded-[2rem] bg-white border border-slate-200 shadow-sm hover:shadow-[0_20px_50px_rgba(8,102,189,0.06)] transition-all duration-500 overflow-hidden ${className}`}
       onMouseMove={handleMouseMove}
     >
-      {/* Luz dorada/blanca que sigue al cursor */}
+      {/* Luz Azul Brand que sigue al cursor */}
       <motion.div
-        className="pointer-events-none absolute -inset-px rounded-[2.5rem] opacity-0 transition duration-500 group-hover:opacity-100 mix-blend-overlay"
+        className="pointer-events-none absolute -inset-px rounded-[2rem] opacity-0 transition duration-500 group-hover:opacity-100"
         style={{
           background: useMotionTemplate`
             radial-gradient(
-              500px circle at ${mouseX}px ${mouseY}px,
-              rgba(255, 255, 255, 0.4),
-              transparent 80%
-            )
-          `,
-        }}
-      />
-      {/* Borde sutil iluminado */}
-      <motion.div
-        className="pointer-events-none absolute inset-0 rounded-[2.5rem] opacity-0 transition duration-300 group-hover:opacity-100"
-        style={{
-          background: useMotionTemplate`
-            radial-gradient(
-              300px circle at ${mouseX}px ${mouseY}px,
-              rgba(250, 204, 21, 0.15),
+              400px circle at ${mouseX}px ${mouseY}px,
+              rgba(8, 102, 189, 0.04),
               transparent 80%
             )
           `,
@@ -69,35 +56,35 @@ export default function Footer() {
 
   // Coordenadas actualizadas a: Marcos Lara 60, Santa Paula, Tonalá, Jalisco
   const mapUrl = "https://maps.google.com/maps?q=Marcos+Lara+60,+Santa+Paula,+Tonal%C3%A1,+Jalisco&t=&z=15&ie=UTF8&iwloc=&output=embed";
-  // Enlace directo a Google Maps para dispositivos móviles (Iniciar Ruta)
+  // Enlace directo a Google Maps para dispositivos móviles
   const navigationUrl = "https://www.google.com/maps/search/?api=1&query=Marcos+Lara+60,+Santa+Paula,+Tonalá,+Jalisco";
 
   return (
-    <footer className="relative bg-gradient-to-b from-[#0866bd] to-[#042f56] text-white pt-24 pb-8 overflow-hidden z-10 mt-auto border-t-4 border-amber-400 shadow-[0_-10px_30px_rgba(8,102,189,0.3)]">
+    <footer className="relative bg-slate-50 text-slate-800 pt-20 pb-8 overflow-hidden z-10 mt-auto border-t border-slate-200">
       
-      {/* === DECORACIÓN DE FONDO CLÁSICA/FUTURISTA === */}
+      {/* === DECORACIÓN DE FONDO LIGHT PREMIUM === */}
       <div className="absolute inset-0 pointer-events-none">
-        {/* Patrón de puntos (Elegante y técnico) */}
-        <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.15)_1.5px,transparent_1.5px)] bg-[size:30px_30px]"></div>
+        {/* Patrón de puntos (Elegante y limpio) */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.03)_1.5px,transparent_1.5px),linear-gradient(90deg,rgba(0,0,0,0.03)_1.5px,transparent_1.5px)] bg-[size:30px_30px]"></div>
         
-        {/* Orbes de luz ambientales animados (Tonos Dorados y Celestes) */}
+        {/* Orbes de luz ambientales animados (Tonos Azul Brand y Oro muy suaves) */}
         <motion.div 
           animate={{ 
-            scale: [1, 1.2, 1],
+            scale: [1, 1.1, 1],
             opacity: [0.3, 0.5, 0.3],
-            x: [0, 50, 0]
+            x: [0, 30, 0]
           }}
           transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-400 rounded-full blur-[150px] mix-blend-overlay"
+          className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-[#0866bd]/10 rounded-full blur-[120px] mix-blend-multiply"
         />
         <motion.div 
           animate={{ 
-            scale: [1, 1.3, 1],
-            opacity: [0.1, 0.2, 0.1],
-            y: [0, -50, 0]
+            scale: [1, 1.2, 1],
+            opacity: [0.2, 0.4, 0.2],
+            y: [0, -30, 0]
           }}
           transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          className="absolute bottom-[-30%] right-[-10%] w-[800px] h-[800px] bg-amber-300 rounded-full blur-[180px] mix-blend-overlay"
+          className="absolute bottom-[-30%] right-[-10%] w-[600px] h-[600px] bg-[#FACC15]/10 rounded-full blur-[150px] mix-blend-multiply"
         />
       </div>
 
@@ -106,34 +93,31 @@ export default function Footer() {
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-50px" }}
-        className="max-w-[85rem] mx-auto px-6 relative z-10 w-full"
+        className="max-w-[75rem] mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full"
       >
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 mb-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 mb-12">
           
           {/* === COLUMNA 1: BRANDING Y CONTACTO === */}
           <div className="lg:col-span-5 flex flex-col items-start relative">
-            <motion.div variants={itemVariants} className="flex items-center gap-6 mb-10 group cursor-default relative">
-              {/* Resplandor trasero dorado del logo */}
-              <div className="absolute top-1/2 left-10 -translate-y-1/2 -translate-x-1/2 w-24 h-24 bg-amber-400/30 rounded-full blur-[30px] group-hover:bg-white/40 transition-colors duration-700"></div>
-              
-              <div className="bg-white p-3 rounded-[1.8rem] flex items-center justify-center w-20 h-20 overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.3)] group-hover:shadow-[0_0_40px_rgba(250,204,21,0.5)] transition-all duration-500 relative z-10 border border-white">
+            <motion.div variants={itemVariants} className="flex items-center gap-5 mb-8 group cursor-default relative">
+              <div className="bg-white p-2.5 rounded-2xl flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 overflow-hidden shadow-sm border border-slate-100 group-hover:border-[#0866bd]/30 transition-all duration-500 relative z-10">
                 <img src="/logo.ico" alt="Logo El Jefe" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
               </div>
               <div className="relative z-10">
-                <h4 className="text-4xl lg:text-5xl font-black uppercase text-white leading-[0.9] tracking-tighter drop-shadow-md">
+                <h4 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-black uppercase text-slate-900 leading-[0.95] tracking-tighter">
                   MOTO PARTES<br/>
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-500 drop-shadow-sm">EL JEFE</span>
+                  <span className="text-[#0866bd]">EL JEFE</span>
                 </h4>
-                {/* Línea dorada clásica */}
-                <div className="h-1.5 w-24 bg-gradient-to-r from-yellow-400 to-amber-500 mt-4 rounded-full shadow-[0_0_15px_rgba(250,204,21,0.6)]"></div>
+                {/* Línea Azul Brand */}
+                <div className="h-1.5 w-16 bg-[#0866bd] mt-3 rounded-full shadow-[0_2px_8px_rgba(8,102,189,0.4)]"></div>
               </div>
             </motion.div>
 
-            <motion.p variants={itemVariants} className="text-blue-50 text-sm mb-12 max-w-md leading-relaxed font-medium drop-shadow-sm border-l-4 border-amber-400 pl-5">
-              Calidad, herencia y confianza premium en Tonalá. Expertos en refacciones para mantener tu pasión en movimiento con el inventario más especializado. <br/><strong className="text-amber-300 font-black uppercase tracking-widest text-[10px] mt-3 inline-flex items-center gap-1.5"><Sparkles size={12}/> Venta Exclusiva en Mostrador.</strong>
+            <motion.p variants={itemVariants} className="text-slate-500 text-xs sm:text-sm mb-10 max-w-md leading-relaxed font-medium border-l-4 border-[#0866bd] pl-4">
+              Calidad, herencia y confianza premium en Tonalá. Expertos en refacciones para mantener tu pasión en movimiento con el inventario más especializado. <br/><strong className="text-[#0866bd] font-black uppercase tracking-widest text-[9px] mt-2 inline-flex items-center gap-1.5"><Sparkles size={10}/> Venta Exclusiva en Mostrador.</strong>
             </motion.p>
 
-            {/* BOTÓN CONTACTO CLÁSICO/MODERNO */}
+            {/* BOTÓN CONTACTO AZUL BRAND */}
             <motion.a 
               variants={itemVariants}
               href="https://wa.me/523332406334" 
@@ -141,67 +125,65 @@ export default function Footer() {
               rel="noreferrer" 
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="group relative inline-flex items-center gap-4 bg-white text-[#0866bd] px-8 py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] transition-all shadow-[0_20px_40px_rgba(0,0,0,0.3)] hover:shadow-[0_20px_40px_rgba(255,255,255,0.25)] border border-transparent overflow-hidden"
+              className="group relative inline-flex items-center gap-3 bg-[#0866bd] text-white px-6 py-4 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-[0.2em] transition-all shadow-[0_10px_20px_rgba(8,102,189,0.3)] hover:shadow-[0_15px_30px_rgba(8,102,189,0.4)] border border-[#0866bd] overflow-hidden"
             >
-              {/* Shimmer de luz dorada */}
-              <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(250,204,21,0.2)_50%,transparent_75%,transparent_100%)] bg-[length:250%_250%,100%_100%] bg-[position:-100%_0,0_0] group-hover:bg-[position:200%_0,0_0] transition-[background-position] duration-[1.5s]"></div>
+              <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.2)_50%,transparent_75%,transparent_100%)] bg-[length:250%_250%,100%_100%] bg-[position:-100%_0,0_0] group-hover:bg-[position:200%_0,0_0] transition-[background-position] duration-[1.5s]"></div>
               
-              <div className="relative flex items-center justify-center w-10 h-10 bg-blue-50 rounded-xl border border-blue-100 group-hover:bg-[#0866bd] group-hover:text-white transition-colors duration-300 shadow-inner">
-                <MessageCircle size={20} strokeWidth={2.5} className="text-[#0866bd] group-hover:text-white transition-colors" /> 
+              <div className="relative flex items-center justify-center w-8 h-8 bg-white rounded-lg group-hover:bg-blue-50 transition-colors shadow-inner">
+                <MessageCircle size={16} strokeWidth={2.5} className="text-[#0866bd]" /> 
               </div>
-              <span className="relative z-10 group-hover:text-[#064e94] transition-colors">WhatsApp Directo</span>
-              <ChevronRight size={16} className="text-slate-400 group-hover:text-[#0866bd] group-hover:translate-x-1 transition-all" />
+              <span className="relative z-10">WhatsApp Directo</span>
+              <ChevronRight size={14} className="text-blue-200 group-hover:text-white group-hover:translate-x-1 transition-all" />
             </motion.a>
           </div>
 
           {/* === COLUMNA 2: INFORMACIÓN OPERATIVA === */}
-          <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+          <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
             
-            {/* HORARIOS (FROST GLASS) */}
-            <GlowCard className="p-8 sm:p-10 group/card hover:border-amber-400/50">
-              <h5 className="font-black text-xs uppercase text-amber-300 tracking-[0.2em] mb-8 flex items-center gap-3 drop-shadow-sm">
-                <div className="bg-amber-400/20 text-amber-300 p-2.5 rounded-xl border border-amber-400/30 shadow-inner group-hover/card:bg-amber-400 group-hover/card:text-slate-900 transition-colors"><Clock size={18}/></div> Horario en Mostrador
+            {/* HORARIOS */}
+            <GlowCard className="p-6 sm:p-8">
+              <h5 className="font-black text-[10px] uppercase text-slate-800 tracking-[0.2em] mb-6 flex items-center gap-2.5">
+                <div className="bg-blue-50 text-[#0866bd] p-2 rounded-lg border border-blue-100"><Clock size={16} strokeWidth={2.5}/></div> Horario en Mostrador
               </h5>
-              <div className="space-y-6 relative z-10">
-                <div className="flex justify-between items-center border-b border-white/20 pb-4">
-                  <span className="text-white font-bold tracking-wide">Lun - Vie</span>
-                  <span className="bg-white/10 text-white px-4 py-1.5 rounded-xl text-sm font-black border border-white/20 shadow-inner">11:00 - 19:00</span>
+              <div className="space-y-4 relative z-10">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                  <span className="text-slate-600 font-bold text-xs uppercase tracking-wider">Lun - Vie</span>
+                  <span className="bg-slate-50 text-slate-700 px-3 py-1 rounded-md text-[10px] font-black border border-slate-200 shadow-sm">11:00 - 19:00</span>
                 </div>
-                <div className="flex justify-between items-center border-b border-white/20 pb-4">
-                  <span className="text-white font-bold tracking-wide">Sábados</span>
-                  <span className="bg-white/10 text-white px-4 py-1.5 rounded-xl text-sm font-black border border-white/20 shadow-inner">11:00 - 16:00</span>
+                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                  <span className="text-slate-600 font-bold text-xs uppercase tracking-wider">Sábados</span>
+                  <span className="bg-slate-50 text-slate-700 px-3 py-1 rounded-md text-[10px] font-black border border-slate-200 shadow-sm">11:00 - 16:00</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-red-200 font-black uppercase tracking-wider">Domingos</span>
-                  <span className="text-red-100 text-xs font-black uppercase tracking-widest px-4 py-1.5 bg-red-500/30 rounded-xl border border-red-400/40 shadow-inner">Cerrado</span>
+                  <span className="text-slate-400 font-bold text-xs uppercase tracking-wider">Domingos</span>
+                  <span className="text-red-500 text-[10px] font-black uppercase px-3 py-1 bg-red-50 rounded-md border border-red-100 shadow-sm">Cerrado</span>
                 </div>
               </div>
-              <div className="mt-8 pt-6 border-t border-white/20 flex items-center gap-3 text-amber-300">
-                <ShieldCheck size={20} strokeWidth={2.5}/>
-                <span className="text-[10px] font-black uppercase tracking-widest text-amber-100 mt-0.5">Garantía Exacta en Local</span>
+              <div className="mt-6 pt-5 border-t border-slate-100 flex items-center gap-2 text-[#0866bd]">
+                <ShieldCheck size={16} strokeWidth={2.5}/>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mt-0.5">Garantía Exacta en Local</span>
               </div>
             </GlowCard>
 
-            {/* UBICACIÓN Y MAPA HUD (FROST GLASS) */}
-            <GlowCard className="flex flex-col h-full p-8 sm:p-10 group/map hover:border-amber-400/50">
-              <h5 className="font-black text-xs uppercase text-amber-300 tracking-[0.2em] mb-5 flex items-center gap-3 drop-shadow-sm">
-                <div className="bg-red-500/20 text-red-200 p-2.5 rounded-xl border border-red-400/30 shadow-inner group-hover/map:bg-red-500 group-hover/map:text-white transition-colors"><MapPin size={18} className="animate-pulse"/></div> Encuéntranos
+            {/* UBICACIÓN Y MAPA */}
+            <GlowCard className="flex flex-col h-full p-6 sm:p-8 group/map">
+              <h5 className="font-black text-[10px] uppercase text-slate-800 tracking-[0.2em] mb-4 flex items-center gap-2.5">
+                <div className="bg-blue-50 text-[#0866bd] p-2 rounded-lg border border-blue-100"><MapPin size={16} className="animate-pulse" strokeWidth={2.5}/></div> Encuéntranos
               </h5>
-              <p className="text-xs sm:text-sm font-bold text-white mb-6 leading-relaxed relative z-10 drop-shadow-sm">
+              <p className="text-[11px] sm:text-xs font-bold text-slate-500 mb-5 leading-relaxed relative z-10">
                 Marcos Lara 60, Santa Paula,<br/>
-                <span className="text-blue-200 font-medium">Tonalá, Jalisco, México.</span>
+                <span className="text-slate-800">Tonalá, Jalisco, México.</span>
               </p>
               
-              {/* Contenedor del Mapa HUD (Clásico / Tecnológico) */}
+              {/* Contenedor del Mapa HUD (Clean Tech) */}
               <motion.a 
                 href={navigationUrl}
                 target="_blank"
                 rel="noreferrer"
-                whileHover={{ y: -5 }}
-                className="flex-1 min-h-[160px] bg-[#03254c] rounded-[1.5rem] border border-white/20 overflow-hidden relative shadow-[0_10px_30px_rgba(0,0,0,0.3)] group/link block cursor-pointer z-10"
+                whileHover={{ y: -3 }}
+                className="flex-1 min-h-[140px] bg-slate-100 rounded-xl border border-slate-200 overflow-hidden relative shadow-inner group/link block cursor-pointer z-10"
                 title="Abrir en Google Maps"
               >
-                {/* Iframe del mapa (En azul clásico, recupera el color real al hover) */}
                 <iframe 
                   src={mapUrl}
                   width="100%" 
@@ -209,16 +191,13 @@ export default function Footer() {
                   style={{ border: 0 }} 
                   allowFullScreen="" 
                   loading="lazy" 
-                  className="grayscale opacity-60 mix-blend-screen group-hover/link:grayscale-0 group-hover/link:opacity-100 transition-all duration-700 scale-110 group-hover/link:scale-100 pointer-events-none" 
+                  className="grayscale opacity-60 mix-blend-multiply group-hover/link:grayscale-0 group-hover/link:opacity-100 transition-all duration-700 scale-110 group-hover/link:scale-100 pointer-events-none" 
                 ></iframe>
                 
-                {/* Overlay Retícula Dorada */}
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(250,204,21,0.2)_1px,transparent_1px),linear-gradient(90deg,rgba(250,204,21,0.2)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none opacity-30 group-hover/link:opacity-0 transition-opacity mix-blend-overlay"></div>
-                
-                {/* Botón de Iniciar Ruta Clásico */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#042f56] via-transparent to-transparent opacity-90 group-hover/link:opacity-50 transition-opacity flex items-end justify-center p-4">
-                  <div className="w-full bg-white text-[#0866bd] text-[10px] font-black uppercase tracking-widest py-3 rounded-xl border border-transparent flex items-center justify-center gap-2 translate-y-8 opacity-0 group-hover/link:translate-y-0 group-hover/link:opacity-100 transition-all duration-500 shadow-[0_10px_20px_rgba(0,0,0,0.3)]">
-                    <Navigation size={14} className="fill-current text-[#0866bd]"/> Iniciar Navegación
+                {/* Botón de Iniciar Ruta */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-transparent opacity-0 group-hover/link:opacity-100 transition-opacity flex items-end justify-center p-3">
+                  <div className="w-full bg-[#0866bd] text-white text-[9px] font-black uppercase tracking-widest py-2.5 rounded-lg flex items-center justify-center gap-2 translate-y-4 opacity-0 group-hover/link:translate-y-0 group-hover/link:opacity-100 transition-all duration-300 shadow-md">
+                    <Navigation size={12} className="fill-current"/> Iniciar Ruta
                   </div>
                 </div>
               </motion.a>
@@ -227,25 +206,25 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* === BARRA INFERIOR DE COPYRIGHT (Elegante y Limpia) === */}
-        <motion.div variants={itemVariants} className="pt-8 border-t border-white/20 flex flex-col md:flex-row justify-between items-center gap-6 mt-auto relative z-10">
-          <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.3em] text-white bg-white/10 backdrop-blur-md px-5 py-2.5 rounded-full border border-white/20 shadow-inner">
-            <Globe size={14} className="text-amber-300" />
-            <span className="mt-0.5 drop-shadow-sm">Tonalá, Jalisco, MX</span>
+        {/* === BARRA INFERIOR DE COPYRIGHT (Minimalista) === */}
+        <motion.div variants={itemVariants} className="pt-6 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-5 mt-auto relative z-10">
+          <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm">
+            <Globe size={12} className="text-[#0866bd]" />
+            <span className="mt-0.5">Tonalá, Jalisco, MX</span>
           </div>
 
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-100 text-center flex flex-wrap justify-center items-center gap-3">
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 text-center flex flex-wrap justify-center items-center gap-3">
             <span>© {currentYear} Moto Partes El Jefe</span>
-            <span className="hidden sm:inline text-white/30">|</span> 
-            <span className="text-slate-900 bg-amber-400 px-3 py-1.5 rounded-lg border border-amber-300 shadow-sm flex items-center gap-1.5 drop-shadow-sm"><ShieldCheck size={12}/> Venta en Mostrador</span>
+            <span className="hidden sm:inline text-slate-300">|</span> 
+            <span className="text-[#0866bd] bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100 flex items-center gap-1.5"><ShieldCheck size={12}/> Mostrador</span>
           </p>
 
-          {/* Indicadores de Sistema Dorados */}
-          <div className="flex gap-2 items-center bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-full border border-white/20 shadow-inner">
-             <span className="text-[8px] font-black text-white uppercase tracking-widest mr-2 opacity-80">SYS_OK</span>
-             <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0 }} className="w-1.5 h-1.5 rounded-full bg-amber-300 shadow-[0_0_8px_#fcd34d]"></motion.div>
-             <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }} className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_#ffffff]"></motion.div>
-             <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: 1 }} className="w-1.5 h-1.5 rounded-full bg-amber-300 shadow-[0_0_8px_#fcd34d]"></motion.div>
+          {/* Indicadores de Sistema */}
+          <div className="flex gap-1.5 items-center bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
+             <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mr-1">SYS_OK</span>
+             <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0 }} className="w-1.5 h-1.5 rounded-full bg-[#0866bd]"></motion.div>
+             <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }} className="w-1.5 h-1.5 rounded-full bg-[#FACC15]"></motion.div>
+             <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: 1 }} className="w-1.5 h-1.5 rounded-full bg-[#0866bd]"></motion.div>
           </div>
         </motion.div>
       </motion.div>
