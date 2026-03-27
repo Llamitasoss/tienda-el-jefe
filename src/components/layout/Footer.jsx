@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { motion, useScroll, useTransform, useSpring, useMotionValue, useMotionTemplate } from 'framer-motion';
+import React from 'react';
+import { motion, useMotionValue, useMotionTemplate } from 'framer-motion';
 import { MapPin, Clock, MessageCircle, ShieldCheck, Globe, Navigation, Sparkles, ChevronRight } from 'lucide-react';
 
 // === VARIANTES DE ANIMACIÓN STAGGER ===
@@ -16,7 +16,7 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
 
-// === COMPONENTE PREMIUM: TARJETA CON LUZ MAGNÉTICA QUE SIGUE EL CURSOR ===
+// === COMPONENTE PREMIUM: TARJETA FROST GLASS CON MAGNÉTISMO DORADO ===
 const GlowCard = ({ children, className = "" }) => {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -30,30 +30,30 @@ const GlowCard = ({ children, className = "" }) => {
   return (
     <motion.div
       variants={itemVariants}
-      className={`relative group rounded-[2rem] bg-slate-900/40 backdrop-blur-xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden ${className}`}
+      className={`relative group rounded-[2.5rem] bg-white/10 backdrop-blur-2xl border border-white/20 shadow-[0_20px_60px_rgba(0,0,0,0.2)] overflow-hidden ${className}`}
       onMouseMove={handleMouseMove}
     >
-      {/* Luz que sigue al cursor */}
+      {/* Luz dorada/blanca que sigue al cursor */}
       <motion.div
-        className="pointer-events-none absolute -inset-px rounded-[2rem] opacity-0 transition duration-300 group-hover:opacity-100"
+        className="pointer-events-none absolute -inset-px rounded-[2.5rem] opacity-0 transition duration-500 group-hover:opacity-100 mix-blend-overlay"
         style={{
           background: useMotionTemplate`
             radial-gradient(
-              600px circle at ${mouseX}px ${mouseY}px,
-              rgba(8, 102, 189, 0.15),
+              500px circle at ${mouseX}px ${mouseY}px,
+              rgba(255, 255, 255, 0.4),
               transparent 80%
             )
           `,
         }}
       />
-      {/* Borde iluminado que sigue al cursor */}
+      {/* Borde sutil iluminado */}
       <motion.div
-        className="pointer-events-none absolute inset-0 rounded-[2rem] opacity-0 transition duration-300 group-hover:opacity-100"
+        className="pointer-events-none absolute inset-0 rounded-[2.5rem] opacity-0 transition duration-300 group-hover:opacity-100"
         style={{
           background: useMotionTemplate`
             radial-gradient(
               300px circle at ${mouseX}px ${mouseY}px,
-              rgba(255, 255, 255, 0.1),
+              rgba(250, 204, 21, 0.15),
               transparent 80%
             )
           `,
@@ -73,36 +73,33 @@ export default function Footer() {
   const navigationUrl = "https://www.google.com/maps/search/?api=1&query=Marcos+Lara+60,+Santa+Paula,+Tonalá,+Jalisco";
 
   return (
-    <footer className="relative bg-[#020817] text-white pt-24 pb-8 border-t-[4px] border-[#0866bd] overflow-hidden z-10 mt-auto">
+    <footer className="relative bg-gradient-to-b from-[#0866bd] to-[#042f56] text-white pt-24 pb-8 overflow-hidden z-10 mt-auto border-t-4 border-amber-400 shadow-[0_-10px_30px_rgba(8,102,189,0.3)]">
       
-      {/* === DECORACIÓN DE FONDO FUTURISTA VIVA === */}
+      {/* === DECORACIÓN DE FONDO CLÁSICA/FUTURISTA === */}
       <div className="absolute inset-0 pointer-events-none">
-        {/* Fondo de red neuronal (Grid) */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1.5px,transparent_1.5px),linear-gradient(90deg,rgba(255,255,255,0.03)_1.5px,transparent_1.5px)] bg-[size:50px_50px]"></div>
+        {/* Patrón de puntos (Elegante y técnico) */}
+        <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.15)_1.5px,transparent_1.5px)] bg-[size:30px_30px]"></div>
         
-        {/* Orbes de luz ambientales animados */}
+        {/* Orbes de luz ambientales animados (Tonos Dorados y Celestes) */}
         <motion.div 
           animate={{ 
             scale: [1, 1.2, 1],
-            opacity: [0.1, 0.2, 0.1],
+            opacity: [0.3, 0.5, 0.3],
             x: [0, 50, 0]
           }}
           transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-[#0866bd] rounded-full blur-[150px]"
+          className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-400 rounded-full blur-[150px] mix-blend-overlay"
         />
         <motion.div 
           animate={{ 
             scale: [1, 1.3, 1],
-            opacity: [0.05, 0.15, 0.05],
+            opacity: [0.1, 0.2, 0.1],
             y: [0, -50, 0]
           }}
           transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          className="absolute bottom-[-30%] right-[-10%] w-[800px] h-[800px] bg-yellow-500 rounded-full blur-[180px]"
+          className="absolute bottom-[-30%] right-[-10%] w-[800px] h-[800px] bg-amber-300 rounded-full blur-[180px] mix-blend-overlay"
         />
       </div>
-
-      {/* Gradiente superior para fusionarse con la página */}
-      <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-[#0866bd]/20 to-transparent pointer-events-none"></div>
 
       <motion.div 
         variants={containerVariants}
@@ -115,26 +112,28 @@ export default function Footer() {
           
           {/* === COLUMNA 1: BRANDING Y CONTACTO === */}
           <div className="lg:col-span-5 flex flex-col items-start relative">
-            <motion.div variants={itemVariants} className="flex items-center gap-5 mb-8 group cursor-default relative">
-              {/* Resplandor del logo */}
-              <div className="absolute top-1/2 left-8 -translate-y-1/2 -translate-x-1/2 w-20 h-20 bg-white/20 rounded-full blur-2xl group-hover:bg-yellow-400/20 transition-colors duration-500"></div>
+            <motion.div variants={itemVariants} className="flex items-center gap-6 mb-10 group cursor-default relative">
+              {/* Resplandor trasero dorado del logo */}
+              <div className="absolute top-1/2 left-10 -translate-y-1/2 -translate-x-1/2 w-24 h-24 bg-amber-400/30 rounded-full blur-[30px] group-hover:bg-white/40 transition-colors duration-700"></div>
               
-              <div className="bg-gradient-to-br from-white to-slate-200 p-2.5 rounded-[1.5rem] flex items-center justify-center w-20 h-20 overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.5)] group-hover:shadow-[0_0_30px_rgba(250,204,21,0.4)] transition-all duration-500 relative z-10 border border-white/20">
-                <img src="/logo.ico" alt="Logo El Jefe" className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" />
+              <div className="bg-white p-3 rounded-[1.8rem] flex items-center justify-center w-20 h-20 overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.3)] group-hover:shadow-[0_0_40px_rgba(250,204,21,0.5)] transition-all duration-500 relative z-10 border border-white">
+                <img src="/logo.ico" alt="Logo El Jefe" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
               </div>
               <div className="relative z-10">
-                <h4 className="text-4xl lg:text-5xl font-black uppercase text-transparent bg-clip-text bg-gradient-to-br from-yellow-300 to-amber-500 leading-[0.9] tracking-tighter drop-shadow-[0_2px_10px_rgba(250,204,21,0.2)]">
+                <h4 className="text-4xl lg:text-5xl font-black uppercase text-white leading-[0.9] tracking-tighter drop-shadow-md">
                   MOTO PARTES<br/>
-                  <span className="text-white">EL JEFE</span>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-500 drop-shadow-sm">EL JEFE</span>
                 </h4>
-                <div className="h-1.5 w-20 bg-gradient-to-r from-yellow-400 to-amber-500 mt-3 rounded-full shadow-[0_0_15px_rgba(250,204,21,0.6)]"></div>
+                {/* Línea dorada clásica */}
+                <div className="h-1.5 w-24 bg-gradient-to-r from-yellow-400 to-amber-500 mt-4 rounded-full shadow-[0_0_15px_rgba(250,204,21,0.6)]"></div>
               </div>
             </motion.div>
 
-            <motion.p variants={itemVariants} className="text-slate-300 text-sm mb-10 max-w-md leading-relaxed font-medium">
-              Calidad y confianza premium en Tonalá. Expertos en refacciones para mantener tu pasión en movimiento con el inventario más especializado de la zona. <br/><strong className="text-emerald-400 font-black uppercase tracking-widest text-[10px] mt-2 inline-flex items-center gap-1"><Sparkles size={12}/> Venta Exclusiva en Mostrador.</strong>
+            <motion.p variants={itemVariants} className="text-blue-50 text-sm mb-12 max-w-md leading-relaxed font-medium drop-shadow-sm border-l-4 border-amber-400 pl-5">
+              Calidad, herencia y confianza premium en Tonalá. Expertos en refacciones para mantener tu pasión en movimiento con el inventario más especializado. <br/><strong className="text-amber-300 font-black uppercase tracking-widest text-[10px] mt-3 inline-flex items-center gap-1.5"><Sparkles size={12}/> Venta Exclusiva en Mostrador.</strong>
             </motion.p>
 
+            {/* BOTÓN CONTACTO CLÁSICO/MODERNO */}
             <motion.a 
               variants={itemVariants}
               href="https://wa.me/523332406334" 
@@ -142,71 +141,67 @@ export default function Footer() {
               rel="noreferrer" 
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="group relative inline-flex items-center gap-4 bg-slate-900 text-white px-8 py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] transition-all shadow-[0_20px_40px_rgba(0,0,0,0.5)] hover:shadow-[0_20px_40px_rgba(16,185,129,0.25)] border border-slate-700/50 hover:border-emerald-500/50 backdrop-blur-xl overflow-hidden"
+              className="group relative inline-flex items-center gap-4 bg-white text-[#0866bd] px-8 py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] transition-all shadow-[0_20px_40px_rgba(0,0,0,0.3)] hover:shadow-[0_20px_40px_rgba(255,255,255,0.25)] border border-transparent overflow-hidden"
             >
-              {/* Shimmer Effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] group-hover:animate-[shimmer_1.5s_infinite]"></div>
+              {/* Shimmer de luz dorada */}
+              <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(250,204,21,0.2)_50%,transparent_75%,transparent_100%)] bg-[length:250%_250%,100%_100%] bg-[position:-100%_0,0_0] group-hover:bg-[position:200%_0,0_0] transition-[background-position] duration-[1.5s]"></div>
               
-              <div className="relative flex items-center justify-center w-10 h-10 bg-emerald-500/10 rounded-xl border border-emerald-500/30 group-hover:bg-emerald-500 group-hover:text-slate-900 transition-colors duration-300">
-                <div className="absolute -top-1 -right-1 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                </div>
-                <MessageCircle size={20} strokeWidth={2.5} className="text-emerald-400 group-hover:text-slate-900 transition-colors" /> 
+              <div className="relative flex items-center justify-center w-10 h-10 bg-blue-50 rounded-xl border border-blue-100 group-hover:bg-[#0866bd] group-hover:text-white transition-colors duration-300 shadow-inner">
+                <MessageCircle size={20} strokeWidth={2.5} className="text-[#0866bd] group-hover:text-white transition-colors" /> 
               </div>
-              <span className="relative z-10">WhatsApp Directo</span>
-              <ChevronRight size={16} className="text-slate-500 group-hover:text-white group-hover:translate-x-1 transition-all" />
+              <span className="relative z-10 group-hover:text-[#064e94] transition-colors">WhatsApp Directo</span>
+              <ChevronRight size={16} className="text-slate-400 group-hover:text-[#0866bd] group-hover:translate-x-1 transition-all" />
             </motion.a>
           </div>
 
           {/* === COLUMNA 2: INFORMACIÓN OPERATIVA === */}
           <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
             
-            {/* HORARIOS (CON COMPONENTE GLOWCARD PREMIUM) */}
-            <GlowCard className="p-8 group/card hover:border-[#0866bd]/50">
-              <h5 className="font-black text-xs uppercase text-yellow-400 tracking-[0.2em] mb-8 flex items-center gap-3 drop-shadow-sm">
-                <div className="bg-yellow-400/10 text-yellow-400 p-2 rounded-xl border border-yellow-400/20 shadow-[0_0_15px_rgba(250,204,21,0.2)] group-hover/card:bg-yellow-400 group-hover/card:text-slate-900 transition-colors"><Clock size={16}/></div> Horario en Mostrador
+            {/* HORARIOS (FROST GLASS) */}
+            <GlowCard className="p-8 sm:p-10 group/card hover:border-amber-400/50">
+              <h5 className="font-black text-xs uppercase text-amber-300 tracking-[0.2em] mb-8 flex items-center gap-3 drop-shadow-sm">
+                <div className="bg-amber-400/20 text-amber-300 p-2.5 rounded-xl border border-amber-400/30 shadow-inner group-hover/card:bg-amber-400 group-hover/card:text-slate-900 transition-colors"><Clock size={18}/></div> Horario en Mostrador
               </h5>
-              <div className="space-y-5 relative z-10">
-                <div className="flex justify-between items-center border-b border-slate-700/50 pb-4">
-                  <span className="text-slate-300 text-sm font-bold tracking-wide">Lun - Vie</span>
-                  <span className="bg-[#0866bd]/20 text-blue-300 px-4 py-1.5 rounded-xl text-sm font-black border border-[#0866bd]/30 shadow-inner">11:00 - 19:00</span>
+              <div className="space-y-6 relative z-10">
+                <div className="flex justify-between items-center border-b border-white/20 pb-4">
+                  <span className="text-white font-bold tracking-wide">Lun - Vie</span>
+                  <span className="bg-white/10 text-white px-4 py-1.5 rounded-xl text-sm font-black border border-white/20 shadow-inner">11:00 - 19:00</span>
                 </div>
-                <div className="flex justify-between items-center border-b border-slate-700/50 pb-4">
-                  <span className="text-slate-300 text-sm font-bold tracking-wide">Sábados</span>
-                  <span className="bg-[#0866bd]/20 text-blue-300 px-4 py-1.5 rounded-xl text-sm font-black border border-[#0866bd]/30 shadow-inner">11:00 - 16:00</span>
+                <div className="flex justify-between items-center border-b border-white/20 pb-4">
+                  <span className="text-white font-bold tracking-wide">Sábados</span>
+                  <span className="bg-white/10 text-white px-4 py-1.5 rounded-xl text-sm font-black border border-white/20 shadow-inner">11:00 - 16:00</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-red-400 text-sm font-black uppercase tracking-wider">Domingos</span>
-                  <span className="text-red-400 text-xs font-black uppercase tracking-widest px-4 py-1.5 bg-red-500/10 rounded-xl border border-red-500/20 shadow-inner">Cerrado</span>
+                  <span className="text-red-200 font-black uppercase tracking-wider">Domingos</span>
+                  <span className="text-red-100 text-xs font-black uppercase tracking-widest px-4 py-1.5 bg-red-500/30 rounded-xl border border-red-400/40 shadow-inner">Cerrado</span>
                 </div>
               </div>
-              <div className="mt-8 pt-5 border-t border-slate-700/50 flex items-center gap-3 text-emerald-400">
-                <ShieldCheck size={18} strokeWidth={2.5}/>
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400/80 mt-0.5">Garantía Exacta en Local</span>
+              <div className="mt-8 pt-6 border-t border-white/20 flex items-center gap-3 text-amber-300">
+                <ShieldCheck size={20} strokeWidth={2.5}/>
+                <span className="text-[10px] font-black uppercase tracking-widest text-amber-100 mt-0.5">Garantía Exacta en Local</span>
               </div>
             </GlowCard>
 
-            {/* UBICACIÓN Y MAPA HUD (CON COMPONENTE GLOWCARD PREMIUM) */}
-            <GlowCard className="flex flex-col h-full p-8 group/map hover:border-[#0866bd]/50">
-              <h5 className="font-black text-xs uppercase text-yellow-400 tracking-[0.2em] mb-4 flex items-center gap-3 drop-shadow-sm">
-                <div className="bg-red-500/10 text-red-400 p-2 rounded-xl border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.2)] group-hover/map:bg-red-500 group-hover/map:text-white transition-colors"><MapPin size={16} className="animate-pulse"/></div> Encuéntranos
+            {/* UBICACIÓN Y MAPA HUD (FROST GLASS) */}
+            <GlowCard className="flex flex-col h-full p-8 sm:p-10 group/map hover:border-amber-400/50">
+              <h5 className="font-black text-xs uppercase text-amber-300 tracking-[0.2em] mb-5 flex items-center gap-3 drop-shadow-sm">
+                <div className="bg-red-500/20 text-red-200 p-2.5 rounded-xl border border-red-400/30 shadow-inner group-hover/map:bg-red-500 group-hover/map:text-white transition-colors"><MapPin size={18} className="animate-pulse"/></div> Encuéntranos
               </h5>
-              <p className="text-xs sm:text-sm font-bold text-white mb-6 leading-relaxed relative z-10">
+              <p className="text-xs sm:text-sm font-bold text-white mb-6 leading-relaxed relative z-10 drop-shadow-sm">
                 Marcos Lara 60, Santa Paula,<br/>
-                <span className="text-slate-400">Tonalá, Jalisco, México.</span>
+                <span className="text-blue-200 font-medium">Tonalá, Jalisco, México.</span>
               </p>
               
-              {/* Contenedor del Mapa HUD de Alta Tecnología */}
+              {/* Contenedor del Mapa HUD (Clásico / Tecnológico) */}
               <motion.a 
                 href={navigationUrl}
                 target="_blank"
                 rel="noreferrer"
                 whileHover={{ y: -5 }}
-                className="flex-1 min-h-[160px] bg-slate-950 rounded-[1.5rem] border border-slate-700 overflow-hidden relative shadow-[0_10px_30px_rgba(0,0,0,0.5)] group/link block cursor-pointer z-10"
+                className="flex-1 min-h-[160px] bg-[#03254c] rounded-[1.5rem] border border-white/20 overflow-hidden relative shadow-[0_10px_30px_rgba(0,0,0,0.3)] group/link block cursor-pointer z-10"
                 title="Abrir en Google Maps"
               >
-                {/* Iframe con filtro Sci-Fi */}
+                {/* Iframe del mapa (En azul clásico, recupera el color real al hover) */}
                 <iframe 
                   src={mapUrl}
                   width="100%" 
@@ -214,19 +209,16 @@ export default function Footer() {
                   style={{ border: 0 }} 
                   allowFullScreen="" 
                   loading="lazy" 
-                  className="grayscale opacity-50 group-hover/link:grayscale-0 group-hover/link:opacity-90 transition-all duration-700 scale-110 group-hover/link:scale-100 pointer-events-none mix-blend-lighten" 
+                  className="grayscale opacity-60 mix-blend-screen group-hover/link:grayscale-0 group-hover/link:opacity-100 transition-all duration-700 scale-110 group-hover/link:scale-100 pointer-events-none" 
                 ></iframe>
                 
-                {/* Overlay Grid Táctico */}
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(8,102,189,0.2)_1px,transparent_1px),linear-gradient(90deg,rgba(8,102,189,0.2)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none opacity-30 group-hover/link:opacity-0 transition-opacity"></div>
+                {/* Overlay Retícula Dorada */}
+                <div className="absolute inset-0 bg-[linear-gradient(rgba(250,204,21,0.2)_1px,transparent_1px),linear-gradient(90deg,rgba(250,204,21,0.2)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none opacity-30 group-hover/link:opacity-0 transition-opacity mix-blend-overlay"></div>
                 
-                {/* Escáner animado sobre el mapa */}
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-[#0866bd] shadow-[0_0_10px_#0866bd] opacity-0 group-hover/link:opacity-100 group-hover/link:animate-[scan_2s_ease-in-out_infinite] pointer-events-none"></div>
-
-                {/* Botón de Iniciar Ruta */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#020817] via-transparent to-transparent opacity-90 group-hover/link:opacity-60 transition-opacity flex items-end justify-center p-4">
-                  <div className="w-full bg-[#0866bd]/80 backdrop-blur-xl text-white text-[10px] font-black uppercase tracking-widest py-3 rounded-xl border border-blue-400/50 flex items-center justify-center gap-2 translate-y-8 opacity-0 group-hover/link:translate-y-0 group-hover/link:opacity-100 transition-all duration-500 shadow-[0_0_20px_rgba(8,102,189,0.6)]">
-                    <Navigation size={14} className="fill-current"/> Iniciar Navegación
+                {/* Botón de Iniciar Ruta Clásico */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#042f56] via-transparent to-transparent opacity-90 group-hover/link:opacity-50 transition-opacity flex items-end justify-center p-4">
+                  <div className="w-full bg-white text-[#0866bd] text-[10px] font-black uppercase tracking-widest py-3 rounded-xl border border-transparent flex items-center justify-center gap-2 translate-y-8 opacity-0 group-hover/link:translate-y-0 group-hover/link:opacity-100 transition-all duration-500 shadow-[0_10px_20px_rgba(0,0,0,0.3)]">
+                    <Navigation size={14} className="fill-current text-[#0866bd]"/> Iniciar Navegación
                   </div>
                 </div>
               </motion.a>
@@ -235,38 +227,29 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* === BARRA INFERIOR DE COPYRIGHT === */}
-        <motion.div variants={itemVariants} className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6 mt-auto relative z-10">
-          <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 bg-slate-900/50 backdrop-blur-md px-5 py-2.5 rounded-full border border-slate-800 shadow-inner">
-            <Globe size={14} className="text-[#0866bd]" />
-            <span className="mt-0.5">Tonalá, Jalisco, MX</span>
+        {/* === BARRA INFERIOR DE COPYRIGHT (Elegante y Limpia) === */}
+        <motion.div variants={itemVariants} className="pt-8 border-t border-white/20 flex flex-col md:flex-row justify-between items-center gap-6 mt-auto relative z-10">
+          <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.3em] text-white bg-white/10 backdrop-blur-md px-5 py-2.5 rounded-full border border-white/20 shadow-inner">
+            <Globe size={14} className="text-amber-300" />
+            <span className="mt-0.5 drop-shadow-sm">Tonalá, Jalisco, MX</span>
           </div>
 
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-center flex flex-wrap justify-center items-center gap-3">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-100 text-center flex flex-wrap justify-center items-center gap-3">
             <span>© {currentYear} Moto Partes El Jefe</span>
-            <span className="hidden sm:inline text-slate-700">|</span> 
-            <span className="text-yellow-500/80 bg-yellow-500/10 px-3 py-1.5 rounded-lg border border-yellow-500/20 flex items-center gap-1.5"><ShieldCheck size={12}/> Venta en Mostrador</span>
+            <span className="hidden sm:inline text-white/30">|</span> 
+            <span className="text-slate-900 bg-amber-400 px-3 py-1.5 rounded-lg border border-amber-300 shadow-sm flex items-center gap-1.5 drop-shadow-sm"><ShieldCheck size={12}/> Venta en Mostrador</span>
           </p>
 
-          {/* Indicadores de Sistema (Animación secuencial) */}
-          <div className="flex gap-2 items-center bg-slate-900/50 px-4 py-2.5 rounded-full border border-slate-800">
-             <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest mr-2">SYS_OK</span>
-             <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0 }} className="w-1.5 h-1.5 rounded-full bg-[#0866bd] shadow-[0_0_8px_#0866bd]"></motion.div>
-             <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }} className="w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_8px_#facc15]"></motion.div>
-             <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: 1 }} className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></motion.div>
+          {/* Indicadores de Sistema Dorados */}
+          <div className="flex gap-2 items-center bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-full border border-white/20 shadow-inner">
+             <span className="text-[8px] font-black text-white uppercase tracking-widest mr-2 opacity-80">SYS_OK</span>
+             <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0 }} className="w-1.5 h-1.5 rounded-full bg-amber-300 shadow-[0_0_8px_#fcd34d]"></motion.div>
+             <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }} className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_#ffffff]"></motion.div>
+             <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.5, repeat: Infinity, delay: 1 }} className="w-1.5 h-1.5 rounded-full bg-amber-300 shadow-[0_0_8px_#fcd34d]"></motion.div>
           </div>
         </motion.div>
       </motion.div>
 
-      {/* CSS extra para la animación del escáner del mapa */}
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes scan {
-          0% { top: 0; opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { top: 100%; opacity: 0; }
-        }
-      `}} />
     </footer>
   );
 }
