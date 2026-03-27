@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionTemplate, useMotionValue } from 'framer-motion';
 import { 
   Search, Loader2, Wrench, Package, Settings, Cog, 
   Activity, Zap, CircleDashed, Star, X,
@@ -10,7 +10,7 @@ import {
   Wind, Shield, Circle, ArrowUp, ArrowDown, 
   MoveHorizontal, Lightbulb, BatteryCharging, Cable, 
   Mountain, LifeBuoy, User, Smartphone, ChevronRight, CheckCircle, ArrowRight,
-  History, Trash2, SlidersHorizontal, Globe 
+  History, Trash2, SlidersHorizontal, Globe, Target
 } from 'lucide-react';
 import ProductGrid from '../components/products/ProductGrid';
 
@@ -57,12 +57,49 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
 
+// === COMPONENTE PREMIUM: TARJETA INTERACTIVA CON GLOW ===
+const InteractiveCard = ({ children, isUniversalMode, onClick, delay = 0 }) => {
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  function handleMouseMove({ currentTarget, clientX, clientY }) {
+    const { left, top } = currentTarget.getBoundingClientRect();
+    mouseX.set(clientX - left);
+    mouseY.set(clientY - top);
+  }
+
+  return (
+    <motion.div
+      variants={itemVariants}
+      whileHover={{ y: -5, scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      onMouseMove={handleMouseMove}
+      className={`relative group bg-white/80 backdrop-blur-xl border border-white/60 rounded-[2rem] p-6 sm:p-8 flex flex-col items-center justify-center cursor-pointer shadow-[0_10px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] transition-all duration-500 overflow-hidden ${isUniversalMode ? 'hover:border-emerald-300/50' : 'hover:border-blue-300/50'}`}
+    >
+      {/* Luz ambiental que sigue al ratón */}
+      <motion.div
+        className="pointer-events-none absolute -inset-px rounded-[2rem] opacity-0 transition duration-300 group-hover:opacity-100"
+        style={{
+          background: useMotionTemplate`
+            radial-gradient(
+              250px circle at ${mouseX}px ${mouseY}px,
+              ${isUniversalMode ? 'rgba(16, 185, 129, 0.15)' : 'rgba(8, 102, 189, 0.15)'},
+              transparent 80%
+            )
+          `,
+        }}
+      />
+      <div className="relative z-10 flex flex-col items-center w-full h-full">{children}</div>
+    </motion.div>
+  );
+};
+
 export default function CatalogWizard() {
   const location = useLocation();
 
   const [step, setStep] = useState(() => Number(sessionStorage.getItem('cw_step')) || 1);
   const [vehicle, setVehicle] = useState(() => JSON.parse(sessionStorage.getItem('cw_vehicle')) || { marca: '', cc: '', anio: '', modelo: '' });
-  // NUEVO ESTADO: Controla si estamos en modo universal
   const [isUniversalMode, setIsUniversalMode] = useState(() => JSON.parse(sessionStorage.getItem('cw_universal')) || false);
   const [selectedCategory, setSelectedCategory] = useState(() => sessionStorage.getItem('cw_category') || '');
   const [selectedSubCategory, setSelectedSubCategory] = useState(() => sessionStorage.getItem('cw_subCategory') || '');
@@ -75,6 +112,10 @@ export default function CatalogWizard() {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [dictionary, setDictionary] = useState({});
   const [dictLoading, setDictLoading] = useState(true);
+
+  // Tema de colores dinámico basado en el modo
+  const themeColor = isUniversalMode ? 'emerald' : 'blue';
+  const themeHex = isUniversalMode ? '#10b981' : '#0866bd';
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -127,7 +168,8 @@ export default function CatalogWizard() {
         });
         setDictionary(dict);
       } catch (error) { console.error("Error al construir diccionario:", error); }
-      setDictLoading(false);
+      // Agregamos un ligero delay para apreciar la animación premium de carga
+      setTimeout(() => setDictLoading(false), 800);
     };
     buildDictionary();
   }, []);
@@ -167,7 +209,7 @@ export default function CatalogWizard() {
   };
 
   const confirmVehicle = () => {
-    setIsUniversalMode(false); // Aseguramos apagar el modo universal
+    setIsUniversalMode(false);
     const newGarage = [vehicle, ...savedGarage.filter(v => v.marca !== vehicle.marca || v.modelo !== vehicle.modelo)].slice(0, 3);
     setSavedGarage(newGarage);
     localStorage.setItem('ej_garage', JSON.stringify(newGarage));
@@ -180,10 +222,9 @@ export default function CatalogWizard() {
     setStep(selectedCategory ? 3 : 2);
   };
 
-  // NUEVA FUNCIÓN: Activa el modo universal y avanza
   const handleUniversalMode = () => {
     setIsUniversalMode(true);
-    setVehicle({ marca: '', cc: '', anio: '', modelo: '' }); // Limpiamos la moto
+    setVehicle({ marca: '', cc: '', anio: '', modelo: '' });
     setStep(selectedCategory ? 3 : 2);
   };
 
@@ -212,17 +253,13 @@ export default function CatalogWizard() {
         const searchKeys = data.searchKeys || [];
         const prodName = (data.name || data.Nombre || "").toLowerCase();
         
-        // Verifica si la pieza es universal
         const isUniversalProduct = data.isUniversal === true || prodName.includes('universal') || searchKeys.some(k => typeof k === 'string' && k.toLowerCase().includes('universal'));
         
-        // Lógica de filtrado inteligente
         let addToResults = false;
         
         if (isUniversalMode) {
-          // Si estamos en modo universal, SOLO mostramos piezas universales
           addToResults = isUniversalProduct;
         } else {
-          // Si estamos buscando una moto específica, mostramos compatibles + universales
           const isCompatible = searchKeys.includes(searchTag);
           addToResults = isCompatible || isUniversalProduct;
         }
@@ -244,7 +281,9 @@ export default function CatalogWizard() {
       });
       setProductos(prods);
     } catch (error) { console.error("Error al buscar productos compatibles:", error); }
-    setLoadingProducts(false);
+    
+    // Simular un poco de "procesamiento" para la sensación de app robusta
+    setTimeout(() => setLoadingProducts(false), 600);
   };
 
   const resetFilters = () => {
@@ -271,80 +310,87 @@ export default function CatalogWizard() {
   }
 
   return (
-    <div className="bg-[#f8fafc] min-h-screen relative selection:bg-yellow-400 selection:text-slate-900 pb-20 overflow-x-hidden">
+    <div className="bg-[#f4f7f9] min-h-screen relative selection:bg-yellow-400 selection:text-slate-900 pb-20 overflow-x-hidden">
       
-      {/* Fondo Decorativo Top-Tier */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(8,102,189,0.01)_1.5px,transparent_1.5px),linear-gradient(90deg,rgba(8,102,189,0.01)_1.5px,transparent_1.5px)] bg-[size:30px_30px] opacity-20 pointer-events-none"></div>
-      <div className="absolute top-20 left-10 w-[30rem] h-[30rem] bg-[#0866bd]/5 blur-[120px] rounded-full pointer-events-none"></div>
-      <div className="absolute bottom-40 right-10 w-[30rem] h-[30rem] bg-yellow-400/5 blur-[120px] rounded-full pointer-events-none"></div>
+      {/* === FONDO DE ALTA INGENIERÍA === */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(8,102,189,0.03)_1.5px,transparent_1.5px),linear-gradient(90deg,rgba(8,102,189,0.03)_1.5px,transparent_1.5px)] bg-[size:40px_40px] pointer-events-none fixed"></div>
+      
+      {/* Orbes Ambientales Dinámicos */}
+      <motion.div animate={{ scale: [1, 1.1, 1], opacity: [0.1, 0.2, 0.1] }} transition={{ duration: 10, repeat: Infinity }} className="absolute top-[-5%] left-[-5%] w-[40vw] h-[40vw] bg-[#0866bd]/20 rounded-full blur-[150px] pointer-events-none mix-blend-multiply"></motion.div>
+      <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.05, 0.15, 0.05] }} transition={{ duration: 15, repeat: Infinity }} className="absolute bottom-[20%] right-[-5%] w-[35vw] h-[35vw] bg-emerald-400/20 rounded-full blur-[150px] pointer-events-none mix-blend-multiply"></motion.div>
 
-      <div className="max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
+      <div className="max-w-[85rem] mx-auto px-4 sm:px-6 lg:px-8 py-16 relative z-10">
         
         <motion.div 
-          initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-          className="mb-10 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-6"
+          initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, type: "spring" }}
+          className="mb-12 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-6"
         >
           <div>
-            <h2 className="text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tight flex items-center justify-center sm:justify-start gap-4 drop-shadow-sm">
-              <div className="bg-white p-2.5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center">
-                <Search className="text-[#0866bd]" size={32} />
+            <h2 className="text-4xl sm:text-5xl font-black text-slate-900 uppercase tracking-tighter flex items-center justify-center sm:justify-start gap-4 drop-shadow-sm leading-none mb-3">
+              <div className="bg-white p-3 rounded-2xl shadow-[0_10px_20px_rgba(8,102,189,0.15)] border border-white/50 flex items-center justify-center relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tr from-blue-50 to-transparent"></div>
+                <Target className="text-[#0866bd] relative z-10" size={36} strokeWidth={2.5} />
               </div>
-              Buscador Inteligente
+              Motor de Búsqueda
             </h2>
-            <p className="text-slate-500 font-medium mt-3 text-sm">Encuentra piezas garantizadas para tu motocicleta en 4 sencillos pasos.</p>
+            <p className="text-slate-500 font-bold mt-3 text-sm tracking-wide bg-white/50 inline-block px-4 py-1.5 rounded-full border border-white/50 shadow-sm backdrop-blur-md">
+              Encuentra la pieza exacta garantizada.
+            </p>
           </div>
         </motion.div>
 
-        <div className="bg-white/80 backdrop-blur-2xl rounded-[3rem] shadow-[0_20px_50px_rgb(0,0,0,0.03)] border border-white/50 overflow-hidden relative">
+        <div className="bg-white/70 backdrop-blur-2xl rounded-[3rem] shadow-[0_30px_80px_rgba(0,0,0,0.06)] border border-white/60 overflow-hidden relative">
           
-          {/* === STEPPER === */}
-          <div className="bg-gradient-to-r from-slate-50/50 to-white border-b border-slate-100/50 flex p-5 sm:p-8 gap-4 sm:gap-10 overflow-x-auto custom-scrollbar relative z-20">
+          {/* === STEPPER (Navegación Superior) === */}
+          <div className="bg-white/80 border-b border-slate-100 flex p-5 sm:p-8 gap-4 sm:gap-10 overflow-x-auto custom-scrollbar relative z-20">
             {[{ num: 1, label: 'Identificación' }, { num: 2, label: 'Sistema' }, { num: 3, label: 'Componente' }, { num: 4, label: 'Resultados' }].map((stepObj, idx) => (
               <div key={stepObj.num} className={`flex items-center gap-3 shrink-0 transition-all duration-500 ${step >= stepObj.num ? 'opacity-100' : 'opacity-40'}`}>
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center font-black text-sm sm:text-base transition-all duration-500 ${step >= stepObj.num ? 'bg-[#0866bd] text-white shadow-[0_0_20px_rgba(8,102,189,0.3)] scale-110' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}>
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-[1.2rem] flex items-center justify-center font-black text-sm sm:text-base transition-all duration-500 ${step >= stepObj.num ? `bg-gradient-to-tr from-${themeColor}-600 to-${themeColor}-400 text-white shadow-[0_10px_20px_rgba(${isUniversalMode ? '16,185,129' : '8,102,189'},0.3)] scale-110 border border-${themeColor}-300/50` : 'bg-slate-100 text-slate-400 border border-slate-200'}`}>
                   {stepObj.num}
                 </div>
-                <span className={`text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] transition-colors duration-500 ${step >= stepObj.num ? 'text-slate-800' : 'text-slate-400'}`}>
+                <span className={`text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] transition-colors duration-500 drop-shadow-sm ${step >= stepObj.num ? 'text-slate-800' : 'text-slate-400'}`}>
                   {stepObj.label}
                 </span>
-                {idx < 3 && <ChevronRight size={16} className={`ml-3 sm:ml-5 transition-colors duration-500 ${step > stepObj.num ? 'text-[#0866bd]' : 'text-slate-200'}`} />}
+                {idx < 3 && <ChevronRight size={16} className={`ml-3 sm:ml-5 transition-colors duration-500 ${step > stepObj.num ? `text-${themeColor}-500` : 'text-slate-300'}`} />}
               </div>
             ))}
           </div>
 
-          <div className="p-6 sm:p-12 lg:p-16 min-h-[500px]">
+          <div className="p-6 sm:p-12 lg:p-16 min-h-[500px] relative">
             
+            {/* Fondo de resplandor para el contenedor de contenido */}
+            <div className={`absolute inset-0 bg-gradient-to-b from-white to-${themeColor}-50/10 pointer-events-none -z-10`}></div>
+
             {/* === PASO 1: TU MOTO === */}
             <AnimatePresence mode="wait">
               {step === 1 && (
                 <motion.div key="step1" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.4 }}>
                   
                   <div className="mb-8 flex items-center gap-4">
-                    <div className="h-10 w-2.5 bg-[#0866bd] rounded-full shadow-[0_0_15px_rgba(8,102,189,0.4)]"></div>
-                    <h3 className="text-2xl sm:text-3xl font-black text-slate-800 uppercase tracking-tight">1. Filtro Específico</h3>
+                    <div className="h-10 w-3 bg-gradient-to-b from-[#0866bd] to-blue-400 rounded-full shadow-[0_0_15px_rgba(8,102,189,0.4)]"></div>
+                    <h3 className="text-2xl sm:text-3xl font-black text-slate-800 uppercase tracking-tight drop-shadow-sm">Filtro Inteligente</h3>
                   </div>
 
-                  {/* GARAGE VIRTUAL */}
+                  {/* GARAGE VIRTUAL (SaaS Style) */}
                   {!dictLoading && savedGarage.length > 0 && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-10 bg-gradient-to-r from-blue-50/50 to-transparent p-6 rounded-[2rem] border border-blue-100/30">
-                      <div className="flex justify-between items-center mb-5">
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-12 bg-white rounded-[2rem] border border-blue-100 shadow-[0_15px_30px_rgba(8,102,189,0.05)] overflow-hidden">
+                      <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex justify-between items-center">
                         <h4 className="text-xs font-black text-[#0866bd] uppercase tracking-widest flex items-center gap-2">
-                          <History size={16}/> Mi Garage Virtual
+                          <History size={16}/> Historial (Garage)
                         </h4>
-                        <button onClick={clearGarage} className="text-[10px] text-slate-400 hover:text-red-500 font-bold uppercase tracking-widest flex items-center gap-1 transition-colors">
+                        <button onClick={clearGarage} className="text-[10px] text-slate-400 hover:text-red-500 font-black uppercase tracking-[0.2em] flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-200 transition-all hover:border-red-200 hover:shadow-sm">
                           <Trash2 size={12}/> Limpiar
                         </button>
                       </div>
-                      <div className="flex gap-4 overflow-x-auto custom-scrollbar pb-2">
+                      <div className="p-6 flex gap-4 overflow-x-auto custom-scrollbar">
                         {savedGarage.map((v, idx) => (
                           <motion.button 
-                            whileHover={{ y: -5, boxShadow: "0 10px 25px rgba(8,102,189,0.1)", borderColor: "#0866bd" }}
-                            whileTap={{ scale: 0.95 }}
-                            key={idx} onClick={() => loadFromGarage(v)}
-                            className="flex-shrink-0 bg-white border border-blue-100 px-6 py-4 rounded-[1.5rem] flex flex-col items-start gap-1 transition-all group"
+                            whileHover={{ y: -5, scale: 1.02 }} whileTap={{ scale: 0.95 }} key={idx} onClick={() => loadFromGarage(v)}
+                            className="flex-shrink-0 bg-white border border-slate-200 hover:border-[#0866bd] hover:shadow-[0_10px_30px_rgba(8,102,189,0.15)] px-6 py-5 rounded-[1.5rem] flex flex-col items-start gap-1.5 transition-all group relative overflow-hidden min-w-[200px] text-left"
                           >
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{v.marca}</span>
-                            <span className="text-sm font-black text-slate-800 uppercase group-hover:text-[#0866bd] transition-colors">{v.modelo} <span className="text-slate-400">({v.anio})</span></span>
+                            <div className="absolute top-0 right-0 w-20 h-full bg-gradient-to-l from-blue-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-2 py-1 rounded-md uppercase tracking-widest relative z-10">{v.marca}</span>
+                            <span className="text-sm font-black text-slate-800 uppercase group-hover:text-[#0866bd] transition-colors relative z-10 mt-1">{v.modelo} <span className="text-slate-400 font-bold ml-1">({v.anio})</span></span>
                           </motion.button>
                         ))}
                       </div>
@@ -352,66 +398,77 @@ export default function CatalogWizard() {
                   )}
                   
                   {dictLoading ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-50/30 rounded-[3rem] border border-slate-100 border-dashed">
-                      <Loader2 className="animate-spin mb-4 text-[#0866bd]" size={48} />
-                      <p className="font-bold uppercase tracking-[0.25em] text-[10px] animate-pulse">Sincronizando Base de Datos...</p>
+                    // === ANIMACIÓN DE CARGA TOP-TIER ===
+                    <div className="flex flex-col items-center justify-center py-24 px-6 text-slate-400 bg-slate-900 rounded-[3rem] border border-slate-800 shadow-[0_20px_50px_rgba(0,0,0,0.2)] relative overflow-hidden">
+                      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#0866bd]/20 via-transparent to-transparent pointer-events-none"></div>
+                      <div className="relative w-24 h-24 mb-8 flex items-center justify-center">
+                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }} className="absolute inset-0 border-t-2 border-r-2 border-blue-400 rounded-full opacity-50"></motion.div>
+                        <motion.div animate={{ rotate: -360 }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }} className="absolute inset-2 border-b-2 border-l-2 border-blue-300 rounded-full opacity-70"></motion.div>
+                        <Target className="text-[#0866bd] relative z-10" size={32} />
+                      </div>
+                      <h3 className="font-black uppercase tracking-[0.25em] text-xs text-white drop-shadow-md mb-2">Conectando con Servidor Central</h3>
+                      <p className="text-[10px] text-slate-500 font-mono tracking-widest animate-pulse">Obteniendo matriz de compatibilidad...</p>
                     </div>
                   ) : (
-                    <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                      <motion.div variants={itemVariants} className="flex flex-col gap-2 group">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2 group-focus-within:text-[#0866bd] transition-colors">Marca *</label>
+                    <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                      
+                      <motion.div variants={itemVariants} className="flex flex-col gap-2 relative group">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-3 group-focus-within:text-[#0866bd] transition-colors drop-shadow-sm">Marca *</label>
                         <div className="relative">
-                          <select value={vehicle.marca} onChange={handleMarcaChange} className="w-full bg-slate-50/50 border-2 border-slate-100 hover:border-blue-100 text-sm font-bold text-slate-800 rounded-2xl p-4 sm:p-5 outline-none cursor-pointer focus:border-[#0866bd] focus:bg-white transition-all shadow-sm appearance-none focus:shadow-[0_0_20px_rgba(8,102,189,0.1)]">
+                          <select value={vehicle.marca} onChange={handleMarcaChange} className="w-full bg-white border-2 border-slate-200 hover:border-blue-300 text-sm font-bold text-slate-800 rounded-2xl p-5 outline-none cursor-pointer focus:border-[#0866bd] transition-all shadow-[inset_0_2px_5px_rgba(0,0,0,0.02)] appearance-none focus:shadow-[0_0_20px_rgba(8,102,189,0.15)] relative z-10">
                             <option value="">Selecciona Marca...</option>
                             {availableMarcas.map(m => <option key={m} value={m}>{m}</option>)}
                           </select>
-                          <ChevronRight size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none rotate-90" />
-                        </div>
-                      </motion.div>
-
-                      <motion.div variants={itemVariants} className="flex flex-col gap-2 group">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2 flex justify-between group-focus-within:text-[#0866bd] transition-colors">
-                          <span>CC</span><span className="text-slate-300">Opcional</span>
-                        </label>
-                        <div className="relative">
-                          <select value={vehicle.cc} onChange={handleCcChange} disabled={!vehicle.marca || availableCC.length === 0} className="w-full bg-slate-50/50 border-2 border-slate-100 hover:border-blue-100 text-sm font-bold text-slate-800 rounded-2xl p-4 sm:p-5 outline-none cursor-pointer focus:border-[#0866bd] focus:bg-white transition-all shadow-sm appearance-none disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed focus:shadow-[0_0_20px_rgba(8,102,189,0.1)]">
-                            <option value="">Todos los CC...</option>
-                            {availableCC.filter(c => c !== 'N/A').map(c => <option key={c} value={c}>{c}</option>)}
-                          </select>
-                          <ChevronRight size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none rotate-90" />
+                          <ChevronRight size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none rotate-90 z-20" />
                         </div>
                       </motion.div>
 
                       <motion.div variants={itemVariants} className="flex flex-col gap-2 relative group">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2 group-focus-within:text-[#0866bd] transition-colors">Modelo *</label>
-                        <input list="modelos-motos-dict" value={vehicle.modelo} onChange={handleModeloChange} disabled={!vehicle.marca} placeholder="Ej: 250Z..." className="w-full bg-slate-50/50 border-2 border-slate-100 hover:border-blue-100 text-sm font-bold text-slate-800 rounded-2xl p-4 sm:p-5 outline-none focus:border-[#0866bd] focus:bg-white transition-all shadow-sm uppercase placeholder:normal-case disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed focus:shadow-[0_0_20px_rgba(8,102,189,0.1)]"/>
-                        <datalist id="modelos-motos-dict">{availableModelos.map(mod => <option key={mod} value={mod} />)}</datalist>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-3 flex justify-between group-focus-within:text-[#0866bd] transition-colors drop-shadow-sm">
+                          <span>CC</span><span className="text-slate-300 bg-slate-100 px-2 py-0.5 rounded-md text-[8px]">Opcional</span>
+                        </label>
+                        <div className="relative">
+                          <select value={vehicle.cc} onChange={handleCcChange} disabled={!vehicle.marca || availableCC.length === 0} className="w-full bg-white border-2 border-slate-200 hover:border-blue-300 text-sm font-bold text-slate-800 rounded-2xl p-5 outline-none cursor-pointer focus:border-[#0866bd] transition-all shadow-[inset_0_2px_5px_rgba(0,0,0,0.02)] appearance-none disabled:opacity-50 disabled:bg-slate-50 disabled:border-slate-100 disabled:cursor-not-allowed focus:shadow-[0_0_20px_rgba(8,102,189,0.15)] relative z-10">
+                            <option value="">Todos los CC...</option>
+                            {availableCC.filter(c => c !== 'N/A').map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                          <ChevronRight size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none rotate-90 z-20" />
+                        </div>
                       </motion.div>
 
-                      <motion.div variants={itemVariants} className="flex flex-col gap-2 group">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2 group-focus-within:text-[#0866bd] transition-colors">Año *</label>
+                      <motion.div variants={itemVariants} className="flex flex-col gap-2 relative group">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-3 group-focus-within:text-[#0866bd] transition-colors drop-shadow-sm">Modelo *</label>
                         <div className="relative">
-                          <select value={vehicle.anio} onChange={handleAnioChange} disabled={!vehicle.modelo} className="w-full bg-slate-50/50 border-2 border-slate-100 hover:border-blue-100 text-sm font-bold text-slate-800 rounded-2xl p-4 sm:p-5 outline-none cursor-pointer focus:border-[#0866bd] focus:bg-white transition-all shadow-sm appearance-none disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed focus:shadow-[0_0_20px_rgba(8,102,189,0.1)]">
+                          <input list="modelos-motos-dict" value={vehicle.modelo} onChange={handleModeloChange} disabled={!vehicle.marca} placeholder="Ej: 250Z..." className="w-full bg-white border-2 border-slate-200 hover:border-blue-300 text-sm font-bold text-slate-800 rounded-2xl p-5 outline-none focus:border-[#0866bd] transition-all shadow-[inset_0_2px_5px_rgba(0,0,0,0.02)] uppercase placeholder:normal-case disabled:opacity-50 disabled:bg-slate-50 disabled:border-slate-100 disabled:cursor-not-allowed focus:shadow-[0_0_20px_rgba(8,102,189,0.15)] relative z-10"/>
+                          <datalist id="modelos-motos-dict">{availableModelos.map(mod => <option key={mod} value={mod} />)}</datalist>
+                          <Search size={16} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none z-20" />
+                        </div>
+                      </motion.div>
+
+                      <motion.div variants={itemVariants} className="flex flex-col gap-2 relative group">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-3 group-focus-within:text-[#0866bd] transition-colors drop-shadow-sm">Año *</label>
+                        <div className="relative">
+                          <select value={vehicle.anio} onChange={handleAnioChange} disabled={!vehicle.modelo} className="w-full bg-white border-2 border-slate-200 hover:border-blue-300 text-sm font-bold text-slate-800 rounded-2xl p-5 outline-none cursor-pointer focus:border-[#0866bd] transition-all shadow-[inset_0_2px_5px_rgba(0,0,0,0.02)] appearance-none disabled:opacity-50 disabled:bg-slate-50 disabled:border-slate-100 disabled:cursor-not-allowed focus:shadow-[0_0_20px_rgba(8,102,189,0.15)] relative z-10">
                             <option value="">Selecciona Año...</option>
                             {availableAnios.map(a => <option key={a} value={a}>{a}</option>)}
                           </select>
-                          <ChevronRight size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none rotate-90" />
+                          <ChevronRight size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none rotate-90 z-20" />
                         </div>
                       </motion.div>
                     </motion.div>
                   )}
 
                   {!dictLoading && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="flex justify-end pt-4">
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="flex justify-end pt-2">
                       <motion.button 
                         whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                         onClick={confirmVehicle} 
                         disabled={!vehicle.marca || !vehicle.anio || !vehicle.modelo}
-                        className="relative overflow-hidden bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-900 font-black uppercase tracking-[0.2em] py-5 px-10 rounded-2xl shadow-[0_15px_30px_rgba(250,204,21,0.3)] hover:shadow-[0_20px_40px_rgba(250,204,21,0.5)] transition-all duration-500 flex items-center justify-center gap-3 w-full sm:w-max disabled:opacity-50 disabled:grayscale group"
+                        className="relative overflow-hidden bg-slate-900 text-white font-black uppercase tracking-[0.2em] py-5 px-10 rounded-[1.5rem] shadow-[0_15px_30px_rgba(0,0,0,0.2)] hover:shadow-[0_20px_40px_rgba(8,102,189,0.3)] hover:bg-[#0866bd] transition-all duration-500 flex items-center justify-center gap-3 w-full sm:w-max disabled:opacity-50 disabled:bg-slate-400 disabled:cursor-not-allowed group border border-slate-700"
                       >
-                        <div className="absolute top-0 left-[-100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/60 to-transparent skew-x-[-25deg] group-hover:left-[200%] transition-all duration-1000 ease-in-out z-0"></div>
-                        <span className="relative z-10 flex items-center gap-3 text-xs">
-                          Confirmar Motocicleta <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                        <div className="absolute top-0 left-[-100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-25deg] group-hover:animate-[shimmer_1.5s_infinite] z-0 pointer-events-none"></div>
+                        <span className="relative z-10 flex items-center gap-3 text-xs drop-shadow-sm">
+                          Fijar Motocicleta <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                         </span>
                       </motion.button>
                     </motion.div>
@@ -419,36 +476,36 @@ export default function CatalogWizard() {
 
                   {/* === SEPARADOR Y BOTÓN UNIVERSAL TOP-TIER === */}
                   {!dictLoading && (
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mt-16">
-                      <div className="relative mb-8">
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mt-20">
+                      <div className="relative mb-10">
                         <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                          <div className="w-full border-t border-slate-200 border-dashed"></div>
+                          <div className="w-full border-t border-slate-200"></div>
                         </div>
                         <div className="relative flex justify-center">
-                          <span className="bg-white px-4 text-[10px] font-black tracking-[0.3em] text-slate-400 uppercase">O explora sin límites</span>
+                          <span className="bg-white/80 backdrop-blur-md px-6 py-2 rounded-full border border-slate-200 text-[10px] font-black tracking-[0.3em] text-slate-500 uppercase shadow-sm">O explora sin límites</span>
                         </div>
                       </div>
 
                       <motion.button
-                        whileHover={{ scale: 1.01, boxShadow: "0 20px 40px rgba(16, 185, 129, 0.25)" }}
+                        whileHover={{ scale: 1.01, boxShadow: "0 25px 50px rgba(16, 185, 129, 0.25)" }}
                         whileTap={{ scale: 0.98 }}
                         onClick={handleUniversalMode}
-                        className="w-full relative overflow-hidden bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 text-white font-black uppercase tracking-widest py-6 sm:py-8 px-6 sm:px-10 rounded-[2.5rem] shadow-[0_15px_30px_rgba(16,185,129,0.2)] transition-all duration-500 flex items-center justify-between sm:justify-center gap-4 sm:gap-6 group border border-emerald-300/50"
+                        className="w-full relative overflow-hidden bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black uppercase tracking-widest py-8 px-6 sm:px-12 rounded-[2.5rem] shadow-[0_15px_30px_rgba(16,185,129,0.2)] transition-all duration-500 flex items-center justify-between gap-6 group border border-emerald-400/50"
                       >
-                        <div className="absolute top-0 left-[-100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-25deg] group-hover:left-[200%] transition-all duration-1000 ease-in-out z-0"></div>
+                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay pointer-events-none"></div>
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/20 rounded-full blur-[60px] pointer-events-none group-hover:scale-150 transition-transform duration-700"></div>
                         
-                        <div className="flex items-center gap-4 sm:gap-6 z-10">
-                          <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center shrink-0 border border-white/30 shadow-inner group-hover:scale-110 transition-transform duration-500">
-                            <Globe size={32} strokeWidth={2.5} className="text-white group-hover:animate-spin-slow" />
+                        <div className="flex items-center gap-6 z-10 relative w-full">
+                          <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center shrink-0 border border-white/40 shadow-inner group-hover:scale-110 group-hover:rotate-12 transition-all duration-500">
+                            <Globe size={32} strokeWidth={2.5} className="text-white drop-shadow-md" />
                           </div>
-                          <div className="flex flex-col items-start text-left">
-                            <span className="text-sm sm:text-lg tracking-[0.2em] mb-1">Catálogo Universal</span>
-                            <span className="text-[9px] sm:text-xs font-bold text-emerald-50 normal-case tracking-wide opacity-90">Piezas, luces y accesorios compatibles con todas las motos</span>
+                          <div className="flex flex-col items-start text-left flex-1">
+                            <span className="text-base sm:text-xl tracking-[0.2em] mb-1.5 drop-shadow-sm text-white">Catálogo Universal</span>
+                            <span className="text-[10px] sm:text-xs font-bold text-emerald-50 normal-case tracking-wide opacity-90 max-w-md">Piezas, luces y tecnología compatibles con cualquier modelo.</span>
                           </div>
-                        </div>
-                        
-                        <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center z-10 shrink-0 sm:absolute sm:right-10 group-hover:bg-white group-hover:text-emerald-500 transition-colors duration-500">
-                          <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                          <div className="hidden sm:flex w-12 h-12 bg-white/20 rounded-full items-center justify-center shrink-0 group-hover:bg-white group-hover:text-emerald-600 transition-colors duration-500 backdrop-blur-sm border border-white/30">
+                            <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                          </div>
                         </div>
                       </motion.button>
                     </motion.div>
@@ -460,43 +517,38 @@ export default function CatalogWizard() {
               {/* === PASO 2: SISTEMA === */}
               {step === 2 && (
                 <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.4 }}>
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-12 pb-8 border-b border-slate-100 gap-4 bg-slate-50/50 p-6 sm:p-8 rounded-[2rem] shadow-inner">
+                  
+                  {/* BARRA DE ESTADO SUPERIOR */}
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-12 pb-8 border-b border-slate-200/60 gap-4 bg-white/50 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border border-white">
                     <div className="flex items-center gap-5">
-                      <div className={`w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border ${isUniversalMode ? 'text-emerald-500 border-emerald-100' : 'text-[#0866bd] border-blue-100'}`}>
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner border border-white/50 ${isUniversalMode ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-[#0866bd]'}`}>
                         {isUniversalMode ? <Globe size={28}/> : <CheckCircle size={28}/>}
                       </div>
                       <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isUniversalMode ? 'Modo de Búsqueda' : 'Vehículo Seleccionado'}</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isUniversalMode ? 'Modo Seleccionado' : 'Vehículo Fijado'}</p>
                         <h3 className={`text-xl sm:text-2xl font-black uppercase flex items-center gap-2 mt-0.5 tracking-tight ${isUniversalMode ? 'text-emerald-600' : 'text-slate-800'}`}>
-                          {isUniversalMode ? 'Catálogo Universal' : <>{vehicle.marca} <span className="text-[#0866bd]">{vehicle.modelo}</span> <span className="text-slate-400">({vehicle.anio})</span></>}
+                          {isUniversalMode ? 'Catálogo Universal' : <>{vehicle.marca} <span className={`text-${themeColor}-600`}>{vehicle.modelo}</span> <span className="text-slate-400">({vehicle.anio})</span></>}
                         </h3>
                       </div>
                     </div>
-                    <button onClick={() => setStep(1)} className="bg-white border border-slate-200 text-[10px] px-6 py-3.5 rounded-xl font-black text-slate-500 hover:bg-slate-800 hover:text-white hover:border-slate-800 transition-colors uppercase tracking-[0.2em] shadow-sm active:scale-95 flex items-center justify-center gap-2"><ArrowRight size={14} className="rotate-180"/> Volver</button>
+                    <button onClick={() => setStep(1)} className="bg-white border border-slate-200 text-[10px] px-6 py-4 rounded-xl font-black text-slate-500 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all uppercase tracking-[0.2em] shadow-sm active:scale-95 flex items-center justify-center gap-2"><ArrowRight size={14} className="rotate-180"/> Modificar</button>
                   </div>
                   
                   <div className="mb-10 flex items-center gap-4">
-                    <div className={`h-10 w-2.5 rounded-full shadow-lg ${isUniversalMode ? 'bg-emerald-500 shadow-emerald-500/40' : 'bg-[#0866bd] shadow-[#0866bd]/40'}`}></div>
-                    <h3 className="text-2xl sm:text-3xl font-black text-slate-800 uppercase tracking-tight">2. ¿Qué buscas mejorar?</h3>
+                    <div className={`h-10 w-3 rounded-full shadow-[0_0_15px_rgba(0,0,0,0.4)] ${isUniversalMode ? 'bg-gradient-to-b from-emerald-500 to-teal-400 shadow-emerald-500/40' : 'bg-gradient-to-b from-[#0866bd] to-blue-400 shadow-[#0866bd]/40'}`}></div>
+                    <h3 className="text-2xl sm:text-3xl font-black text-slate-800 uppercase tracking-tight drop-shadow-sm">2. Selecciona el Sistema</h3>
                   </div>
 
                   <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
                     {MAIN_CATEGORIES.map((cat) => {
                       const IconComponent = cat.icon;
                       return (
-                        <motion.div 
-                          variants={itemVariants} 
-                          whileHover={{ y: -5, borderColor: isUniversalMode ? "rgba(16,185,129,0.3)" : "rgba(8,102,189,0.3)" }}
-                          whileTap={{ scale: 0.95 }}
-                          key={cat.id} onClick={() => handleCategorySelect(cat.id)} 
-                          className="bg-white border border-slate-100 rounded-[2rem] p-6 sm:p-8 flex flex-col items-center justify-center cursor-pointer shadow-[0_10px_30px_rgba(0,0,0,0.02)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] transition-all duration-300 group relative overflow-hidden"
-                        >
-                          <div className={`absolute inset-0 bg-gradient-to-b from-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${isUniversalMode ? 'to-emerald-50/50' : 'to-blue-50/50'}`}></div>
-                          <div className={`w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 border border-slate-100 rounded-[1.5rem] flex items-center justify-center mb-5 group-hover:shadow-lg transition-all duration-500 z-10 ${isUniversalMode ? 'group-hover:bg-emerald-500 group-hover:shadow-emerald-500/30' : 'group-hover:bg-[#0866bd] group-hover:shadow-[#0866bd]/30'}`}>
-                            <IconComponent size={32} className="text-slate-400 group-hover:text-white transition-colors duration-500" />
+                        <InteractiveCard key={cat.id} isUniversalMode={isUniversalMode} onClick={() => handleCategorySelect(cat.id)}>
+                          <div className={`w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 border border-slate-100 rounded-[1.5rem] flex items-center justify-center mb-5 group-hover:shadow-lg transition-all duration-500 z-10 shadow-inner ${isUniversalMode ? 'group-hover:bg-gradient-to-br group-hover:from-emerald-400 group-hover:to-teal-500 group-hover:text-white group-hover:border-transparent' : 'group-hover:bg-gradient-to-br group-hover:from-blue-500 group-hover:to-[#0866bd] group-hover:text-white group-hover:border-transparent'}`}>
+                            <IconComponent size={32} strokeWidth={2} className="text-slate-400 group-hover:text-white transition-colors duration-500" />
                           </div>
                           <span className={`font-black text-[10px] sm:text-xs text-slate-500 uppercase tracking-[0.2em] text-center transition-colors z-10 ${isUniversalMode ? 'group-hover:text-emerald-600' : 'group-hover:text-[#0866bd]'}`}>{cat.nombre}</span>
-                        </motion.div>
+                        </InteractiveCard>
                       );
                     })}
                   </motion.div>
@@ -506,43 +558,37 @@ export default function CatalogWizard() {
               {/* === PASO 3: COMPONENTE === */}
               {step === 3 && (
                 <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.4 }}>
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-12 pb-8 border-b border-slate-100 gap-4 bg-slate-50/50 p-6 sm:p-8 rounded-[2rem] shadow-inner">
+                  
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-12 pb-8 border-b border-slate-200/60 gap-4 bg-white/50 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border border-white">
                     <div className="flex items-center gap-5">
-                      <div className={`w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border ${isUniversalMode ? 'text-emerald-500 border-emerald-100' : 'text-yellow-500 border-yellow-100'}`}>
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner border border-white/50 ${isUniversalMode ? 'bg-emerald-50 text-emerald-600' : 'bg-yellow-50 text-yellow-600'}`}>
                         {isUniversalMode ? <Globe size={28}/> : <CheckCircle size={28}/>}
                       </div>
                       <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtros Activos</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ruta de Búsqueda</p>
                         <h3 className={`text-sm sm:text-base font-black uppercase flex items-center gap-2 mt-1 tracking-tight flex-wrap ${isUniversalMode ? 'text-emerald-600' : 'text-slate-800'}`}>
-                          {isUniversalMode ? 'UNIVERSAL' : `${vehicle.marca} ${vehicle.modelo}`} <span className="text-slate-300">/</span> <span className={isUniversalMode ? 'text-slate-800' : 'text-[#0866bd]'}>{selectedCategory}</span>
+                          {isUniversalMode ? 'UNIVERSAL' : `${vehicle.marca} ${vehicle.modelo}`} <span className="text-slate-300">/</span> <span className={`text-${themeColor}-600 drop-shadow-sm`}>{selectedCategory}</span>
                         </h3>
                       </div>
                     </div>
-                    <button onClick={() => setStep(2)} className="bg-white border border-slate-200 text-[10px] px-6 py-3.5 rounded-xl font-black text-slate-500 hover:bg-slate-800 hover:text-white hover:border-slate-800 transition-colors uppercase tracking-[0.2em] shadow-sm active:scale-95 flex items-center justify-center gap-2"><ArrowRight size={14} className="rotate-180"/> Cambiar Sistema</button>
+                    <button onClick={() => setStep(2)} className="bg-white border border-slate-200 text-[10px] px-6 py-4 rounded-xl font-black text-slate-500 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all uppercase tracking-[0.2em] shadow-sm active:scale-95 flex items-center justify-center gap-2"><ArrowRight size={14} className="rotate-180"/> Sistema</button>
                   </div>
                   
                   <div className="mb-10 flex items-center gap-4">
-                    <div className={`h-10 w-2.5 rounded-full shadow-lg ${isUniversalMode ? 'bg-emerald-500 shadow-emerald-500/40' : 'bg-[#0866bd] shadow-[#0866bd]/40'}`}></div>
-                    <h3 className="text-2xl sm:text-3xl font-black text-slate-800 uppercase tracking-tight">3. Selecciona el Componente</h3>
+                    <div className={`h-10 w-3 rounded-full shadow-lg ${isUniversalMode ? 'bg-gradient-to-b from-emerald-500 to-teal-400 shadow-emerald-500/40' : 'bg-gradient-to-b from-[#0866bd] to-blue-400 shadow-[#0866bd]/40'}`}></div>
+                    <h3 className="text-2xl sm:text-3xl font-black text-slate-800 uppercase tracking-tight drop-shadow-sm">3. Tipo de Pieza</h3>
                   </div>
 
                   <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
                     {INVENTORY_CATEGORIES[selectedCategory]?.map((subCat) => {
                       const IconComponent = SUBCATEGORY_ICONS[subCat] || Settings; 
                       return (
-                        <motion.div 
-                          variants={itemVariants}
-                          whileHover={{ y: -5, borderColor: isUniversalMode ? "rgba(16,185,129,0.4)" : "rgba(250,204,21,0.5)" }}
-                          whileTap={{ scale: 0.95 }}
-                          key={subCat} onClick={() => fetchProductsForVehicle(subCat)} 
-                          className="bg-white border border-slate-100 rounded-[2rem] p-6 sm:p-8 flex flex-col items-center justify-center cursor-pointer shadow-[0_10px_30px_rgba(0,0,0,0.02)] transition-all duration-500 group relative overflow-hidden"
-                        >
-                          <div className={`absolute inset-0 bg-gradient-to-b from-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${isUniversalMode ? 'to-emerald-50/50' : 'to-yellow-50/50'}`}></div>
-                          <div className={`w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 border border-slate-100 rounded-[1.5rem] flex items-center justify-center mb-5 transition-all duration-500 z-10 ${isUniversalMode ? 'group-hover:bg-gradient-to-br group-hover:from-teal-400 group-hover:to-emerald-500 group-hover:border-transparent group-hover:shadow-[0_10px_20px_rgba(16,185,129,0.4)]' : 'group-hover:bg-gradient-to-br group-hover:from-amber-400 group-hover:to-yellow-500 group-hover:border-transparent group-hover:shadow-[0_10px_20px_rgba(250,204,21,0.4)]'}`}>
-                            <IconComponent size={32} className="text-slate-400 group-hover:text-slate-900 transition-colors duration-500" />
+                        <InteractiveCard key={subCat} isUniversalMode={isUniversalMode} onClick={() => fetchProductsForVehicle(subCat)}>
+                          <div className={`w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 border border-slate-100 rounded-[1.5rem] flex items-center justify-center mb-5 transition-all duration-500 z-10 shadow-inner ${isUniversalMode ? 'group-hover:bg-gradient-to-br group-hover:from-emerald-400 group-hover:to-teal-500 group-hover:text-white group-hover:border-transparent group-hover:shadow-[0_10px_20px_rgba(16,185,129,0.3)]' : 'group-hover:bg-gradient-to-br group-hover:from-[#0866bd] group-hover:to-blue-600 group-hover:text-white group-hover:border-transparent group-hover:shadow-[0_10px_20px_rgba(8,102,189,0.3)]'}`}>
+                            <IconComponent size={32} strokeWidth={2} className="text-slate-400 group-hover:text-white transition-colors duration-500" />
                           </div>
-                          <span className="font-black text-[10px] sm:text-xs text-slate-500 uppercase tracking-[0.2em] text-center group-hover:text-slate-900 transition-colors z-10">{subCat}</span>
-                        </motion.div>
+                          <span className={`font-black text-[10px] sm:text-xs text-slate-500 uppercase tracking-[0.2em] text-center transition-colors z-10 ${isUniversalMode ? 'group-hover:text-emerald-600' : 'group-hover:text-[#0866bd]'}`}>{subCat}</span>
+                        </InteractiveCard>
                       );
                     })}
                   </motion.div>
@@ -552,48 +598,55 @@ export default function CatalogWizard() {
               {/* === PASO 4: RESULTADOS === */}
               {step === 4 && (
                 <motion.div key="step4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                  <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-10 pb-8 border-b border-slate-100 gap-6 bg-slate-50/50 p-6 sm:p-8 rounded-[2rem] shadow-inner">
+                  
+                  {/* BARRA DE ESTADO FINAL */}
+                  <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-10 pb-8 border-b border-slate-200/60 gap-6 bg-white/50 backdrop-blur-md p-6 sm:p-8 rounded-[2rem] shadow-sm border border-white">
                     <div className="flex items-start sm:items-center gap-5">
-                      <div className={`w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border shrink-0 ${isUniversalMode ? 'text-emerald-500 border-emerald-100' : 'text-emerald-500 border-emerald-100'}`}>
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner border border-white/50 shrink-0 ${isUniversalMode ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-50 text-emerald-600'}`}>
                         {isUniversalMode ? <Globe size={28}/> : <CheckCircle size={28}/>}
                       </div>
                       <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isUniversalMode ? 'Catálogo Universal' : 'Búsqueda Completada'}</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isUniversalMode ? 'Catálogo Universal' : 'Búsqueda Finalizada'}</p>
                         <h3 className={`text-sm sm:text-base font-black uppercase flex items-center gap-2 mt-1 flex-wrap tracking-tight ${isUniversalMode ? 'text-emerald-600' : 'text-slate-800'}`}>
-                          {isUniversalMode ? 'Todas las Motos' : `${vehicle.marca} ${vehicle.modelo} (${vehicle.anio})`} <span className="text-slate-300 px-1">/</span> <span className={isUniversalMode ? 'text-slate-800' : 'text-[#0866bd]'}>{selectedSubCategory}</span>
+                          {isUniversalMode ? 'Todas las Motos' : `${vehicle.marca} ${vehicle.modelo} (${vehicle.anio})`} <span className="text-slate-300 px-1">/</span> <span className={`text-${themeColor}-600 drop-shadow-sm`}>{selectedSubCategory}</span>
                         </h3>
                       </div>
                     </div>
                     <div className="flex gap-3">
-                      <button onClick={() => setStep(3)} className="flex-1 sm:flex-none bg-white border border-slate-200 text-[10px] px-6 py-3.5 rounded-xl font-black text-slate-600 hover:bg-slate-100 hover:border-slate-300 transition-colors uppercase tracking-[0.2em] shadow-sm active:scale-95 text-center flex items-center justify-center gap-2"><ArrowRight size={14} className="rotate-180"/> Atrás</button>
-                      <button onClick={resetFilters} className="flex-1 sm:flex-none bg-white border border-red-100 text-[10px] px-6 py-3.5 rounded-xl font-black text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors uppercase tracking-[0.2em] shadow-sm active:scale-95 flex items-center justify-center gap-2"><X size={14}/> Reset</button>
+                      <button onClick={() => setStep(3)} className="flex-1 sm:flex-none bg-white border border-slate-200 text-[10px] px-6 py-4 rounded-xl font-black text-slate-500 hover:bg-slate-100 hover:border-slate-300 transition-colors uppercase tracking-[0.2em] shadow-sm active:scale-95 flex items-center justify-center gap-2"><ArrowRight size={14} className="rotate-180"/> Atrás</button>
+                      <button onClick={resetFilters} className="flex-1 sm:flex-none bg-white border border-red-100 text-[10px] px-6 py-4 rounded-xl font-black text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors uppercase tracking-[0.2em] shadow-sm active:scale-95 flex items-center justify-center gap-2"><X size={14} strokeWidth={2.5}/> Reset</button>
                     </div>
                   </div>
                   
                   {loadingProducts ? (
-                    <div className="flex flex-col items-center justify-center py-32 text-slate-400">
-                      <Loader2 className={`animate-spin mb-6 ${isUniversalMode ? 'text-emerald-500' : 'text-[#0866bd]'}`} size={56} />
-                      <p className="font-black tracking-[0.25em] uppercase text-xs animate-pulse">Analizando Inventario...</p>
+                    // === ANIMACIÓN DE CARGA DE RESULTADOS ===
+                    <div className="flex flex-col items-center justify-center py-32 text-slate-400 bg-white/40 backdrop-blur-sm rounded-[3rem] border border-white shadow-sm">
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}>
+                        <Loader2 className={`mb-6 drop-shadow-md ${isUniversalMode ? 'text-emerald-500' : 'text-[#0866bd]'}`} size={56} strokeWidth={2.5} />
+                      </motion.div>
+                      <p className="font-black tracking-[0.3em] uppercase text-[10px] animate-pulse text-slate-500">Filtrando Inventario Exacto...</p>
                     </div>
                   ) : productos.length > 0 ? (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
                       
                       {/* === PANEL DE FILTROS === */}
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10 bg-white border border-slate-100 p-4 sm:px-6 rounded-2xl shadow-sm">
-                        <h3 className="text-sm sm:text-base font-black text-slate-800 uppercase tracking-tight">Piezas Encontradas ({displayedProducts.length})</h3>
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10 bg-white/80 backdrop-blur-md border border-white p-4 sm:px-6 rounded-2xl shadow-sm">
+                        <h3 className="text-sm sm:text-base font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                          Resultados <span className={`text-xs px-2.5 py-1 rounded-md text-white ${isUniversalMode ? 'bg-emerald-500' : 'bg-[#0866bd]'}`}>{displayedProducts.length}</span>
+                        </h3>
                         <div className="flex flex-wrap items-center gap-5 w-full sm:w-auto">
                           
                           <label className="flex items-center gap-3 cursor-pointer group">
                             <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors duration-300 shadow-inner ${inStockOnly ? (isUniversalMode ? 'bg-emerald-500' : 'bg-blue-500') : 'bg-slate-200'}`}>
                               <div className={`bg-white w-3 h-3 rounded-full shadow-sm transform transition-transform duration-300 ${inStockOnly ? 'translate-x-5' : ''}`}></div>
                             </div>
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 group-hover:text-slate-800 transition-colors">Ocultar Agotados</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 group-hover:text-slate-800 transition-colors">En Mostrador</span>
                           </label>
                           
                           <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>
                           
-                          <div className="flex items-center gap-3 text-slate-500 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 focus-within:border-[#0866bd] focus-within:shadow-sm transition-all group">
-                            <SlidersHorizontal size={16} className={`transition-colors ${isUniversalMode ? 'group-focus-within:text-emerald-500' : 'group-focus-within:text-[#0866bd]'}`} />
+                          <div className={`flex items-center gap-3 text-slate-500 bg-white px-4 py-2.5 rounded-xl border border-slate-200 focus-within:shadow-sm transition-all group shadow-inner ${isUniversalMode ? 'focus-within:border-emerald-400' : 'focus-within:border-[#0866bd]'}`}>
+                            <SlidersHorizontal size={14} className={`transition-colors ${isUniversalMode ? 'group-focus-within:text-emerald-500' : 'group-focus-within:text-[#0866bd]'}`} />
                             <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="bg-transparent text-[10px] font-black uppercase tracking-[0.2em] outline-none cursor-pointer text-slate-700">
                               <option value="relevancia">Destacados</option>
                               <option value="asc">Menor Precio</option>
@@ -604,22 +657,26 @@ export default function CatalogWizard() {
                         </div>
                       </div>
 
+                      {/* RESULTADOS REFINADOS */}
                       <ProductGrid products={displayedProducts} />
 
                     </motion.div>
                   ) : (
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-24 px-4 text-center bg-white/50 backdrop-blur-sm rounded-[3rem] border border-slate-100 shadow-inner">
-                      <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-sm border border-slate-100">
-                        <Search size={40} className="text-slate-300" />
+                    // === ESTADO VACÍO ELEGANTE ===
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-24 px-4 text-center bg-white/60 backdrop-blur-xl rounded-[3rem] border border-white shadow-[0_20px_40px_rgba(0,0,0,0.04)] relative overflow-hidden">
+                      <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-[80px] -z-10 ${isUniversalMode ? 'bg-emerald-400/10' : 'bg-blue-400/10'}`}></div>
+                      
+                      <div className="w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center mb-8 shadow-sm border border-slate-100">
+                        <Search size={40} className="text-slate-300" strokeWidth={2} />
                       </div>
-                      <h3 className="text-2xl sm:text-3xl font-black text-slate-800 uppercase tracking-tight mb-4">Inventario Agotado</h3>
+                      <h3 className="text-2xl sm:text-3xl font-black text-slate-800 uppercase tracking-tight mb-4 drop-shadow-sm">Inventario Agotado</h3>
                       <p className="font-medium max-w-md text-sm text-slate-500 mb-10 leading-relaxed">
-                        Por el momento no tenemos refacciones registradas en <strong className="text-slate-700">{selectedSubCategory}</strong> {isUniversalMode ? 'que sean universales' : <>con compatibilidad verificada para la <strong className="text-slate-700">{vehicle.marca} {vehicle.modelo} ({vehicle.anio})</strong></>}.
+                        Por el momento no tenemos piezas disponibles en la subcategoría <strong className="text-slate-800">{selectedSubCategory}</strong> {isUniversalMode ? 'que sean tipo universal' : <>con garantía de compatibilidad para tu <strong className="text-slate-800">{vehicle.marca} {vehicle.modelo}</strong></>}.
                       </p>
                       
                       <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-                        <button onClick={() => setStep(3)} className="bg-white border-2 border-slate-200 text-slate-600 font-black py-4 px-8 rounded-2xl hover:bg-slate-50 hover:border-slate-300 transition-all uppercase tracking-[0.15em] text-[10px] shadow-sm active:scale-95">Probar Otro Componente</button>
-                        <button onClick={resetFilters} className={`text-white font-black py-4 px-8 rounded-2xl transition-all uppercase tracking-[0.15em] text-[10px] shadow-[0_10px_20px_rgba(0,0,0,0.1)] active:scale-95 ${isUniversalMode ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-slate-900 hover:bg-[#0866bd]'}`}>Iniciar Nueva Búsqueda</button>
+                        <button onClick={() => setStep(3)} className="bg-white border border-slate-200 text-slate-600 font-black py-4 px-8 rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all uppercase tracking-[0.15em] text-[10px] shadow-sm active:scale-95">Buscar Otro Componente</button>
+                        <button onClick={resetFilters} className={`text-white font-black py-4 px-8 rounded-xl transition-all uppercase tracking-[0.15em] text-[10px] shadow-[0_10px_20px_rgba(0,0,0,0.15)] active:scale-95 border border-transparent ${isUniversalMode ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-slate-900 hover:bg-[#0866bd]'}`}>Limpiar Filtros</button>
                       </div>
                     </motion.div>
                   )}
