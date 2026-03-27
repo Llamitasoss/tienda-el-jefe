@@ -22,12 +22,12 @@ const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.1, delayChildren: 0.2 }
+    transition: { staggerChildren: 0.1, delayChildren: 0.1 }
   }
 };
 
 const cardVariants = {
-  hidden: { opacity: 0, y: 40, scale: 0.95 },
+  hidden: { opacity: 0, y: 30, scale: 0.98 },
   visible: { 
     opacity: 1, 
     y: 0, 
@@ -36,22 +36,19 @@ const cardVariants = {
   }
 };
 
-// === TARJETA 3D MAGNÉTICA (ESTILO ZAFIRO Y ORO) ===
+// === TARJETA 3D MAGNÉTICA (ESTILO BOUTIQUE PREMIUM) ===
 const TiltCard = ({ cat }) => {
-  // --- Valores para el efecto 3D interactivo ---
   const mouseX = useMotionValue(0.5); 
   const mouseY = useMotionValue(0.5);
 
-  // Físicas de resorte optimizadas para sentirse "líquidas" y pesadas (Premium)
+  // Físicas de resorte ultra-suaves
   const springConfig = { damping: 30, stiffness: 300, mass: 0.5 };
   const smoothMouseX = useSpring(mouseX, springConfig);
   const smoothMouseY = useSpring(mouseY, springConfig);
 
-  // Mapeamos las coordenadas a grados de inclinación sutiles (-8deg a 8deg)
-  const rotateX = useTransform(smoothMouseY, [0, 1], [8, -8]);
-  const rotateY = useTransform(smoothMouseX, [0, 1], [-8, 8]);
+  const rotateX = useTransform(smoothMouseY, [0, 1], [6, -6]);
+  const rotateY = useTransform(smoothMouseX, [0, 1], [-6, 6]);
 
-  // --- Valores para el resplandor (Spotlight) ---
   const spotX = useMotionValue(0);
   const spotY = useMotionValue(0);
 
@@ -60,21 +57,17 @@ const TiltCard = ({ cat }) => {
     const width = rect.width;
     const height = rect.height;
     
-    // Posición exacta del mouse en px
     const xPx = e.clientX - rect.left;
     const yPx = e.clientY - rect.top;
 
-    // Actualizamos valores para el spotlight
     spotX.set(xPx);
     spotY.set(yPx);
 
-    // Actualizamos valores normalizados (0 a 1) para el 3D
     mouseX.set(xPx / width);
     mouseY.set(yPx / height);
   }
 
   function handleMouseLeave() {
-    // Retorno suave y elástico al centro
     mouseX.set(0.5);
     mouseY.set(0.5);
   }
@@ -82,65 +75,64 @@ const TiltCard = ({ cat }) => {
   const IconComponent = cat.icon;
 
   return (
-    <motion.div variants={cardVariants} style={{ perspective: 1200 }} className="w-full h-64">
+    <motion.div variants={cardVariants} style={{ perspective: 1200 }} className="w-full h-56">
       <motion.div
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
-        className="group relative h-full w-full rounded-[2.5rem] bg-gradient-to-b from-[#042f56] to-[#021830] border border-white/10 shadow-[0_20px_40px_rgba(4,47,86,0.15)] cursor-pointer transition-colors duration-500 hover:border-amber-400/50 hover:shadow-[0_25px_60px_rgba(250,204,21,0.25)] overflow-hidden"
+        className="group relative h-full w-full rounded-[2rem] bg-[#03254c]/40 backdrop-blur-xl border border-white/5 shadow-[0_15px_30px_rgba(0,0,0,0.3)] cursor-pointer transition-all duration-500 hover:border-[#0866bd]/50 hover:bg-[#03254c]/60 hover:shadow-[0_20px_40px_rgba(8,102,189,0.15)] overflow-hidden"
       >
-        {/* Textura sutil para dar aspecto de material físico */}
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-overlay pointer-events-none"></div>
+        {/* Textura sutil estelar */}
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10 mix-blend-overlay pointer-events-none"></div>
         
-        {/* Glow interno cálido que se enciende al hover */}
-        <div className="absolute inset-0 bg-amber-400/0 group-hover:bg-amber-400/10 transition-colors duration-700 blur-[20px] pointer-events-none"></div>
+        {/* Resplandor Azul Brand interno al hover */}
+        <div className="absolute inset-0 bg-[#0866bd]/0 group-hover:bg-[#0866bd]/5 transition-colors duration-700 blur-[15px] pointer-events-none"></div>
 
         <Link to={`/catalogo?categoria=${cat.id}`} className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6">
           
-          {/* === NÚCLEO DE ENERGÍA (Capa elevada en 3D) === */}
           <motion.div 
-            style={{ transform: "translateZ(50px)" }} 
+            style={{ transform: "translateZ(40px)" }} 
             className="flex flex-col items-center pointer-events-none w-full"
           >
-            {/* Contenedor del ícono con transformación a Oro */}
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[1.5rem] bg-white/5 backdrop-blur-md flex items-center justify-center mb-6 transition-all duration-500 group-hover:bg-gradient-to-br group-hover:from-yellow-400 group-hover:to-amber-500 group-hover:shadow-[0_10px_30px_rgba(250,204,21,0.4)] border border-white/10 group-hover:border-yellow-200 relative z-10">
-              <IconComponent strokeWidth={2} className="w-8 h-8 sm:w-10 sm:h-10 text-blue-200 transition-colors duration-500 group-hover:text-slate-900 drop-shadow-sm" />
+            {/* Contenedor del ícono: Transición a Azul Brand */}
+            <div className="w-14 h-14 rounded-2xl bg-[#021830] flex items-center justify-center mb-5 transition-all duration-500 group-hover:bg-[#0866bd] group-hover:shadow-[0_10px_20px_rgba(8,102,189,0.4)] border border-white/5 group-hover:border-[#0866bd] relative z-10 shadow-inner">
+              <IconComponent size={24} strokeWidth={1.5} className="text-[#0866bd] transition-colors duration-500 group-hover:text-[#FBFBF2] drop-shadow-sm" />
             </div>
             
-            {/* Título HUD Clásico */}
-            <h3 className="text-xs sm:text-sm font-black uppercase tracking-[0.25em] text-blue-50 transition-all duration-500 group-hover:text-white drop-shadow-sm text-center w-full truncate px-4">
+            {/* Título HUD Elegante y Reducido */}
+            <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#FBFBF2]/80 transition-all duration-500 group-hover:text-[#FBFBF2] drop-shadow-sm text-center w-full truncate px-4">
               {cat.nombre}
             </h3>
             
-            {/* Flecha indicadora Táctica Dorada */}
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-amber-400 opacity-0 translate-y-4 transition-all duration-500 group-hover:opacity-100 group-hover:translate-y-2 mt-2">
-              Explorar <div className="w-6 h-6 rounded-full bg-amber-400/20 flex items-center justify-center"><ArrowRight size={12} strokeWidth={3} className="text-amber-400" /></div>
+            {/* Flecha indicadora (Dorado Cálido para el CTA de lujo) */}
+            <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-[#FACC15] opacity-0 translate-y-3 transition-all duration-500 group-hover:opacity-100 group-hover:translate-y-1 mt-3">
+              Explorar <div className="w-5 h-5 rounded-full bg-[#FACC15]/10 flex items-center justify-center border border-[#FACC15]/20"><ArrowRight size={10} strokeWidth={2.5} className="text-[#FACC15]" /></div>
             </div>
             
           </motion.div>
         </Link>
 
-        {/* --- LÁSER DE SEGUIMIENTO (Spotlight Principal Suave) --- */}
+        {/* --- LÁSER DE SEGUIMIENTO (Azul Brand) --- */}
         <motion.div
-          className="pointer-events-none absolute -inset-px rounded-[2.5rem] opacity-0 transition-opacity duration-500 group-hover:opacity-100 z-10 mix-blend-screen"
+          className="pointer-events-none absolute -inset-px rounded-[2rem] opacity-0 transition-opacity duration-500 group-hover:opacity-100 z-10 mix-blend-screen"
           style={{
             background: useMotionTemplate`
               radial-gradient(
-                400px circle at ${spotX}px ${spotY}px,
-                rgba(255, 255, 255, 0.1),
+                350px circle at ${spotX}px ${spotY}px,
+                rgba(8, 102, 189, 0.2),
                 transparent 70%
               )
             `,
           }}
         />
-        {/* --- NÚCLEO MAGNÉTICO DORADO (Segundo spotlight intenso en el cursor) --- */}
+        {/* --- NÚCLEO MAGNÉTICO (Blanco Premium suave) --- */}
         <motion.div
-          className="pointer-events-none absolute -inset-px rounded-[2.5rem] opacity-0 transition-opacity duration-500 group-hover:opacity-100 z-10 mix-blend-overlay"
+          className="pointer-events-none absolute -inset-px rounded-[2rem] opacity-0 transition-opacity duration-500 group-hover:opacity-100 z-10 mix-blend-overlay"
           style={{
             background: useMotionTemplate`
               radial-gradient(
-                150px circle at ${spotX}px ${spotY}px,
-                rgba(250, 204, 21, 0.4),
+                100px circle at ${spotX}px ${spotY}px,
+                rgba(251, 251, 242, 0.15),
                 transparent 80%
               )
             `,
@@ -153,40 +145,45 @@ const TiltCard = ({ cat }) => {
 
 export default function CategoriasDestacadas() {
   return (
-    <div className="mx-auto w-full max-w-[85rem] px-4 sm:px-6 lg:px-8 mb-32 relative z-10">
+    <div className="bg-[#021830] pt-12 pb-32 relative overflow-hidden">
+      {/* Fondo Arquitectónico */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1.5px,transparent_1.5px),linear-gradient(90deg,rgba(255,255,255,0.02)_1.5px,transparent_1.5px)] bg-[size:30px_30px] pointer-events-none"></div>
       
-      {/* === ENCABEZADO DE LA SECCIÓN (NEO-CLÁSICO) === */}
-      <motion.div 
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-100px" }}
-        transition={{ duration: 0.8, type: "spring", stiffness: 200 }}
-        className="mb-16 flex flex-col items-center text-center relative"
-      >
-        <span className="inline-flex items-center gap-2 py-2 px-6 rounded-full bg-[#042f56] border border-[#0866bd]/50 text-amber-400 font-black text-[10px] uppercase tracking-[0.25em] mb-6 shadow-[0_5px_15px_rgba(4,47,86,0.2)]">
-          <Activity size={14} className="animate-pulse"/> Catálogo Estructural
-        </span>
-        <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tighter text-slate-900 leading-none drop-shadow-sm">
-          Encuentra por <br className="sm:hidden" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#042f56] to-[#0866bd]">Categoría</span>
-        </h2>
-        {/* Acento clásico de oro */}
-        <div className="mt-6 h-1.5 w-24 rounded-full bg-gradient-to-r from-yellow-400 to-amber-500 shadow-[0_0_15px_rgba(250,204,21,0.5)]"></div>
-      </motion.div>
-      
-      {/* Contenedor principal que lanza la animación en cascada a los hijos */}
-      <motion.div 
-        variants={containerVariants}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-50px" }}
-        className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"
-      >
-        {MAIN_CATEGORIES.map((cat) => (
-          <TiltCard key={cat.id} cat={cat} />
-        ))}
-      </motion.div>
-      
+      <div className="mx-auto w-full max-w-[75rem] px-4 sm:px-6 lg:px-8 relative z-10">
+        
+        {/* === ENCABEZADO DE LA SECCIÓN (Boutique) === */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.8, type: "spring", stiffness: 200 }}
+          className="mb-14 flex flex-col items-center text-center relative"
+        >
+          <span className="inline-flex items-center gap-2 py-1.5 px-4 rounded-lg bg-[#03254c] border border-white/5 text-[#FBFBF2]/60 font-bold text-[9px] uppercase tracking-[0.25em] mb-5 shadow-sm">
+            <Activity size={12} className="text-[#0866bd] animate-pulse"/> Catálogo Estructural
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-[#FBFBF2] leading-tight drop-shadow-sm">
+            Encuentra por <br className="sm:hidden" />
+            <span className="text-[#0866bd]">Categoría</span>
+          </h2>
+          {/* Acento clásico Azul Brand */}
+          <div className="mt-5 h-1 w-16 rounded-full bg-[#0866bd] shadow-[0_0_10px_rgba(8,102,189,0.5)]"></div>
+        </motion.div>
+        
+        {/* Contenedor principal que lanza la animación en cascada */}
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"
+        >
+          {MAIN_CATEGORIES.map((cat) => (
+            <TiltCard key={cat.id} cat={cat} />
+          ))}
+        </motion.div>
+        
+      </div>
     </div>
   );
 }
