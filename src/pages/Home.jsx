@@ -101,61 +101,60 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="flex flex-col bg-white font-sans overflow-x-hidden selection:bg-[#0866bd] selection:text-white">
+    // ELIMINADO EL FONDO CUADRICULADO: Ahora es un bg-slate-50 liso y premium
+    <div className="flex flex-col bg-slate-50 font-sans overflow-x-hidden selection:bg-[#0866bd] selection:text-white">
       
-      {/* === BACKGROUND GRID CLÁSICO LUMINOSO === */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.03)_1.5px,transparent_1.5px),linear-gradient(90deg,rgba(0,0,0,0.03)_1.5px,transparent_1.5px)] bg-[size:30px_30px] pointer-events-none fixed"></div>
-      
-      {/* === HERO SECTION TOP-TIER (BLANCO PREMIUM) === */}
-      <div className="relative min-h-[90vh] flex items-center overflow-hidden mb-12 pt-24 sm:pt-0 border-b border-slate-100 bg-slate-50/50">
+      {/* === HERO SECTION TOP-TIER (BLANCO PREMIUM LISO) === */}
+      {/* pt-32 sm:pt-40 asegura que el contenido baje lo suficiente para no estorbar a la Isla Dinámica (Header) */}
+      <div className="relative min-h-[85vh] flex items-center overflow-hidden mb-12 pt-32 sm:pt-40 border-b border-slate-200 bg-white">
         
         {/* Imagen de fondo Parallax Suave */}
         <motion.div 
           initial={{ scale: 1.05, opacity: 0 }} 
-          animate={{ scale: 1, opacity: 0.08 }} 
+          animate={{ scale: 1, opacity: 0.05 }} 
           transition={{ duration: 2, ease: "easeOut" }}
           className="absolute inset-0 bg-cover bg-center mix-blend-luminosity grayscale" 
           style={{ backgroundImage: `url('https://images.unsplash.com/photo-1558981403-c5f9899a28bc?q=80&w=2000&auto=format&fit=crop')` }}
         />
 
-        {/* Orbes de Energía (Azul Brand y Oro Suaves) */}
+        {/* Orbes de Energía (Tu Azul Brand predominando sutilmente) */}
         <motion.div 
-          animate={{ opacity: [0.05, 0.1, 0.05], scale: [1, 1.1, 1], x: [0, 30, 0] }} 
+          animate={{ opacity: [0.03, 0.08, 0.03], scale: [1, 1.1, 1], x: [0, 30, 0] }} 
           transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
           className="absolute top-[-10%] left-[-5%] w-[40rem] h-[40rem] bg-[#0866bd] rounded-full blur-[150px] pointer-events-none mix-blend-multiply"
         />
         <motion.div 
-          animate={{ opacity: [0.03, 0.08, 0.03], scale: [1, 1.2, 1], x: [0, -30, 0] }} 
+          animate={{ opacity: [0.02, 0.05, 0.02], scale: [1, 1.2, 1], x: [0, -30, 0] }} 
           transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 2 }}
           className="absolute bottom-[10%] right-[-10%] w-[35rem] h-[35rem] bg-[#FACC15] rounded-full blur-[150px] pointer-events-none mix-blend-multiply"
         />
 
-        <div className="max-w-[75rem] mx-auto px-4 sm:px-6 lg:px-8 w-full relative z-10 py-16 pb-32">
+        <div className="max-w-[75rem] mx-auto px-4 sm:px-6 lg:px-8 w-full relative z-10 py-10 pb-32">
           <motion.div 
             initial="hidden" animate="visible" 
             variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.15 } } }}
             className="max-w-3xl"
           >
             <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}>
-              <div className="inline-flex items-center gap-2 bg-[#FACC15]/10 border border-[#FACC15]/30 text-[#d97706] font-black text-[9px] sm:text-[10px] uppercase tracking-[0.25em] px-4 py-2 rounded-lg mb-8 shadow-sm">
+              <div className="inline-flex items-center gap-2 bg-yellow-50 border border-yellow-200 text-yellow-600 font-black text-[9px] sm:text-[10px] uppercase tracking-[0.25em] px-4 py-2 rounded-lg mb-8 shadow-sm">
                 <Zap size={12} className="fill-current text-[#FACC15]" /> Distribuidor Especializado
               </div>
             </motion.div>
             
             <motion.h1 
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-              className="text-5xl sm:text-6xl lg:text-[6.5rem] font-black text-slate-900 uppercase tracking-tighter leading-[0.9] mb-8"
+              className="text-5xl sm:text-6xl lg:text-[7rem] font-black text-slate-900 uppercase tracking-tighter leading-[0.9] mb-8"
             >
               El motor de tu <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0866bd] to-blue-400 relative inline-block group">
+              <span className="text-[#0866bd] relative inline-block group">
                 Pasión
-                <span className="absolute -bottom-2 left-0 w-full h-1.5 bg-gradient-to-r from-[#FACC15] to-amber-400 rounded-full shadow-[0_0_15px_rgba(250,204,21,0.4)] group-hover:scale-x-105 transition-transform duration-700 ease-out"></span>
+                <span className="absolute -bottom-2 left-0 w-full h-1.5 bg-gradient-to-r from-[#FACC15] to-amber-400 rounded-full shadow-[0_2px_10px_rgba(250,204,21,0.3)] group-hover:scale-x-105 transition-transform duration-700 ease-out"></span>
               </span>
             </motion.h1>
             
             <motion.p 
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-              className="text-slate-600 text-sm sm:text-base font-medium leading-relaxed mb-10 max-w-xl border-l-4 border-[#0866bd] pl-5 py-1 bg-white/50 backdrop-blur-sm rounded-r-xl shadow-sm"
+              className="text-slate-600 text-sm sm:text-base font-medium leading-relaxed mb-10 max-w-xl border-l-4 border-[#0866bd] pl-5 py-2 bg-slate-50/50 backdrop-blur-sm rounded-r-xl shadow-sm"
             >
               Piezas garantizadas, calidad OEM y el mejor precio digital de Jalisco. Encuentra la refacción exacta que necesitas en segundos.
             </motion.p>
@@ -164,7 +163,7 @@ export default function Home() {
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               className="flex flex-col sm:flex-row gap-4"
             >
-              {/* Botón Principal Azul Brand */}
+              {/* Botón Principal (TU AZUL BRAND) */}
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.95 }} className="h-full">
                 <Link to="/catalogo" className="relative overflow-hidden bg-[#0866bd] text-white font-black uppercase tracking-[0.15em] text-[10px] py-4 px-8 rounded-xl shadow-[0_10px_20px_rgba(8,102,189,0.3)] hover:shadow-[0_15px_30px_rgba(8,102,189,0.4)] flex items-center justify-center group border border-[#0866bd]">
                   <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.2)_50%,transparent_75%,transparent_100%)] bg-[length:250%_250%,100%_100%] bg-[position:-100%_0,0_0] group-hover:bg-[position:200%_0,0_0] transition-[background-position] duration-[1.5s]"></div>
@@ -174,9 +173,9 @@ export default function Home() {
                 </Link>
               </motion.div>
               
-              {/* Botón Secundario Blanco */}
+              {/* Botón Secundario (Blanco Elegante) */}
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.95 }} className="h-full">
-                <Link to="/talleres" className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-black uppercase tracking-[0.15em] text-[10px] py-4 px-8 rounded-xl flex items-center justify-center transition-all duration-300 group shadow-sm hover:border-[#0866bd]/30">
+                <Link to="/talleres" className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 font-black uppercase tracking-[0.15em] text-[10px] py-4 px-8 rounded-xl flex items-center justify-center transition-all duration-300 group shadow-sm hover:border-[#0866bd]/30 hover:text-[#0866bd]">
                   Talleres VIP <Sparkles className="ml-2.5 text-[#FACC15] group-hover:scale-125 transition-transform" size={16}/>
                 </Link>
               </motion.div>
@@ -189,9 +188,9 @@ export default function Home() {
       <div className="relative z-20 max-w-[75rem] mx-auto px-4 sm:px-6 lg:px-8 w-full -mt-24 mb-24">
         <motion.div 
           initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.2, type: "spring" }}
-          className="bg-white/80 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-slate-100 p-2 sm:p-3"
+          className="bg-white/90 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-slate-200 p-2 sm:p-3"
         >
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-50/50 rounded-[2rem] p-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-50 rounded-[2rem] p-2">
             {[
               { icon: Store, title: 'Recolección Local', desc: 'Sucursal Tonalá' },
               { icon: Shield, title: 'Garantía Exacta', desc: 'Cambios sin costo' },
@@ -240,7 +239,7 @@ export default function Home() {
             {ofertas.length > 0 && (
               <ScrollReveal>
                 <ProductGrid products={ofertas} title={
-                  <div className="flex items-center gap-3 border-b border-slate-100 pb-3 w-max">
+                  <div className="flex items-center gap-3 border-b border-slate-200 pb-3 w-max">
                     <span className="text-2xl sm:text-3xl font-black text-slate-900 uppercase tracking-tighter">Liquidación</span>
                     <div className="bg-[#EF4444]/10 p-2 rounded-lg border border-[#EF4444]/20 shadow-sm">
                       <Flame className="text-[#EF4444] animate-pulse" size={20} strokeWidth={2.5} />
@@ -253,9 +252,9 @@ export default function Home() {
             {masVendidos.length > 0 && (
               <ScrollReveal delay={0.1}>
                 <ProductGrid products={masVendidos} title={
-                  <div className="flex items-center gap-3 border-b border-slate-100 pb-3 w-max">
+                  <div className="flex items-center gap-3 border-b border-slate-200 pb-3 w-max">
                     <span className="text-2xl sm:text-3xl font-black text-slate-900 uppercase tracking-tighter">Más Vendidos</span>
-                    <div className="bg-[#0866bd]/10 p-2 rounded-lg border border-[#0866bd]/20 shadow-sm">
+                    <div className="bg-blue-50 p-2 rounded-lg border border-blue-100 shadow-sm">
                       <TrendingUp className="text-[#0866bd]" size={20} strokeWidth={2.5} />
                     </div>
                   </div>
@@ -263,11 +262,11 @@ export default function Home() {
               </ScrollReveal>
             )}
 
-            {/* BANNER INTERMEDIO (Brand Blue Elegante) */}
+            {/* BANNER INTERMEDIO (Tu Azul Brand Fuerte) */}
             <ScrollReveal>
               <motion.div 
                 whileHover="hover"
-                className="w-full bg-[#0866bd] rounded-[2.5rem] relative overflow-hidden py-20 sm:py-24 shadow-[0_20px_50px_rgba(8,102,189,0.25)] border border-blue-500/30 my-8 group cursor-pointer"
+                className="w-full bg-[#0866bd] rounded-[2.5rem] relative overflow-hidden py-20 sm:py-24 shadow-[0_20px_50px_rgba(8,102,189,0.25)] border border-[#0866bd] my-8 group cursor-pointer"
               >
                 <motion.div 
                   variants={{ hover: { scale: 1.05 } }}
@@ -276,7 +275,7 @@ export default function Home() {
                   style={{ backgroundImage: `url('https://images.unsplash.com/photo-1449426468159-d96dbf08f19f?q=80&w=2000&auto=format&fit=crop')` }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-[#0866bd] via-[#0866bd]/90 to-transparent"></div>
-                <div className="absolute top-0 right-0 w-[30rem] h-[30rem] bg-blue-400/20 rounded-full blur-[80px] pointer-events-none group-hover:bg-blue-400/30 transition-colors duration-1000"></div>
+                <div className="absolute top-0 right-0 w-[30rem] h-[30rem] bg-white/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-white/20 transition-colors duration-1000"></div>
                 
                 <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-10 px-8 sm:px-16">
                     <div className="max-w-xl text-white">
@@ -305,9 +304,9 @@ export default function Home() {
             {mejorCalificados.length > 0 && (
               <ScrollReveal>
                 <ProductGrid products={mejorCalificados} title={
-                  <div className="flex items-center gap-3 border-b border-slate-100 pb-3 w-max">
+                  <div className="flex items-center gap-3 border-b border-slate-200 pb-3 w-max">
                     <span className="text-2xl sm:text-3xl font-black text-slate-900 uppercase tracking-tighter">Mejor Calificados</span>
-                    <div className="bg-[#FACC15]/10 p-2 rounded-lg border border-[#FACC15]/30 shadow-sm">
+                    <div className="bg-yellow-50 p-2 rounded-lg border border-yellow-200 shadow-sm">
                       <Award className="text-yellow-600" size={20} strokeWidth={2.5} />
                     </div>
                   </div>
@@ -317,8 +316,8 @@ export default function Home() {
 
             {recienAgregados.length > 0 && (
               <ScrollReveal direction="left">
-                <div className="bg-slate-50/80 backdrop-blur-xl rounded-[2.5rem] p-6 sm:p-10 border border-slate-200 shadow-sm relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-60 h-60 bg-[#0866bd]/5 rounded-full blur-[60px] -z-10 group-hover:scale-125 transition-transform duration-1000 pointer-events-none"></div>
+                <div className="bg-white backdrop-blur-xl rounded-[2.5rem] p-6 sm:p-10 border border-slate-200 shadow-sm relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-60 h-60 bg-blue-50 rounded-full blur-[60px] -z-10 group-hover:scale-125 transition-transform duration-1000 pointer-events-none"></div>
                   
                   <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 border-b border-slate-200 pb-6 gap-5 relative z-10">
                       <div className="border-l-2 border-[#0866bd] pl-4 bg-blue-50/50 py-2 rounded-r-lg pr-4">
@@ -344,13 +343,13 @@ export default function Home() {
       </AnimatePresence>
 
       {/* === SECCIÓN DE RESEÑAS (BLANCO PREMIUM) === */}
-      <div className="bg-slate-50 py-20 sm:py-28 relative overflow-hidden mt-10 border-t border-slate-200">
-        <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-100/30 via-transparent to-transparent pointer-events-none"></div>
+      <div className="bg-white py-20 sm:py-28 relative overflow-hidden mt-10 border-t border-slate-200">
+        <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-50/50 via-transparent to-transparent pointer-events-none"></div>
         
         <div className="max-w-[75rem] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <ScrollReveal>
             <div className="text-center mb-16 max-w-2xl mx-auto">
-              <span className="inline-flex items-center gap-1.5 py-1.5 px-4 rounded-lg bg-white border border-slate-200 text-slate-600 font-bold text-[9px] uppercase tracking-widest mb-4 shadow-sm">
+              <span className="inline-flex items-center gap-1.5 py-1.5 px-4 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 font-bold text-[9px] uppercase tracking-widest mb-4 shadow-sm">
                 <Star size={10} className="text-[#FACC15] fill-current"/> Comunidad El Jefe
               </span>
               <h2 className="text-4xl sm:text-5xl font-black text-slate-900 uppercase tracking-tighter leading-tight">
@@ -369,7 +368,7 @@ export default function Home() {
                   <motion.div 
                     whileHover={{ y: -8 }}
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                    className="bg-white p-8 rounded-[2rem] border border-slate-100 transition-all duration-500 hover:border-[#0866bd]/30 shadow-sm hover:shadow-[0_15px_30px_rgba(8,102,189,0.1)] relative group h-full flex flex-col"
+                    className="bg-white p-8 rounded-[2rem] border border-slate-200 transition-all duration-500 hover:border-[#0866bd]/30 shadow-sm hover:shadow-[0_15px_30px_rgba(8,102,189,0.08)] relative group h-full flex flex-col"
                   >
                     <div className="absolute top-6 right-6 text-slate-100 group-hover:text-blue-50 transition-colors duration-500">
                       <Quote size={40} className="rotate-180" />
@@ -400,8 +399,8 @@ export default function Home() {
             </div>
           ) : (
             <ScrollReveal>
-              <div className="bg-white rounded-[2.5rem] p-10 sm:p-16 text-center border border-slate-100 max-w-2xl mx-auto shadow-sm">
-                <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-blue-100">
+              <div className="bg-slate-50 rounded-[2.5rem] p-10 sm:p-16 text-center border border-slate-200 max-w-2xl mx-auto shadow-sm">
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 border border-slate-100 shadow-sm">
                   <PackageOpen size={28} className="text-[#0866bd]" strokeWidth={1.5} />
                 </div>
                 <h3 className="text-2xl sm:text-3xl font-black text-slate-900 uppercase tracking-tight mb-4">Sé el primero en dejar huella</h3>
