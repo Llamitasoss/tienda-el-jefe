@@ -12,7 +12,7 @@ import {
   Mountain, LifeBuoy, User, Smartphone, CheckCircle, ArrowRight,
   History, Trash2, SlidersHorizontal, Globe, Target, ChevronDown, Clock
 } from 'lucide-react';
-import ProductGrid from '../products/ProductGrid';
+import ProductGrid from "../components/products/ProductGrid";
 
 export const INVENTORY_CATEGORIES = {
   "MANTENIMIENTO": ["Lubricación / Líquidos", "Afinación", "Frenos"],
