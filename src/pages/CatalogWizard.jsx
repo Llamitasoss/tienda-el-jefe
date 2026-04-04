@@ -12,6 +12,8 @@ import {
   Mountain, LifeBuoy, User, Smartphone, CheckCircle, ArrowRight,
   History, Trash2, SlidersHorizontal, Globe, Target, ChevronDown, Clock
 } from 'lucide-react';
+
+// Aquí está la ruta corregida:
 import ProductGrid from "../components/products/ProductGrid";
 
 export const INVENTORY_CATEGORIES = {
